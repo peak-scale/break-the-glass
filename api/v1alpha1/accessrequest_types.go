@@ -28,18 +28,45 @@ type AccessRequestSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of AccessRequest. Edit accessrequest_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// AccessRuleReference name of the access rule to request
+	// +kubebuilder:validation:Required
+	AccessRuleReference string `json:"accessRuleReference"`
+
+	// A reason on why the request is needed
+	// +kubebuilder:validation:Required
+	Reason string `json:"reason"`
+
+	// An optional reference to e.g.: a ticket number, an incident, ...
+	Reference string `json:"reference,omitempty"`
+
+	// Optional Time AccessRequests are valid for, after which they will be automatically deleted. Must be within max duration.
+	// If not defined, defaults from the requested rule.
+	Duration metav1.Duration `json:"duration"`
+
+	// Optionally define for whom the request should be assigned. Defaults to the creation user of the request.
+	For string `json:"for"`
 }
 
 // AccessRequestStatus defines the observed state of AccessRequest.
 type AccessRequestStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	ActiveFrom  metav1.Timestamp `json:"activeFrom"`
+	ActiveUntil metav1.Timestamp `json:"activeUntil"`
+	KeepUntil   metav1.Timestamp `json:"keepUntil"`
+	Duration    metav1.Duration  `json:"duration"`
+
+	// +kubebuilder:validation:Enum=Requested;Denied;Active;Terminated
+	Phase RequestPhase `json:"phase"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Rule",type=string,JSONPath=`.spec.accessRuleReference`
+// +kubebuilder:printcolumn:name="Reason",type=date,JSONPath=`.spec.reason`
+// +kubebuilder:printcolumn:name="Reference",type=string,JSONPath=`.spec.reference`
+// +kubebuilder:printcolumn:name="ActiveFrom",type=string,JSONPath=`.status.duration`,priority=10
+// +kubebuilder:printcolumn:name="Duration",type=string,JSONPath=`.status.activeUntil`,priority=10
+// +kubebuilder:printcolumn:name="ActiveUntil",type=string,JSONPath=`.status.activeFrom`,priority=10
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 
 // AccessRequest is the Schema for the accessrequests API.
 type AccessRequest struct {
@@ -62,3 +89,12 @@ type AccessRequestList struct {
 func init() {
 	SchemeBuilder.Register(&AccessRequest{}, &AccessRequestList{})
 }
+
+type RequestPhase string
+
+const (
+	RequestPhaseRequested  RequestPhase = "Requested"
+	RequestPhaseDenied     RequestPhase = "Denied"
+	RequestPhaseActive     RequestPhase = "Active"
+	RequestPhaseTerminated RequestPhase = "Terminated"
+)
