@@ -79,10 +79,6 @@ spec:
               reason:
                 description: A reason on why the request is needed
                 type: string
-              reference:
-                description: 'An optional reference to e.g.: a ticket number, an incident,
-                  ...'
-                type: string
             required:
             - accessRuleReference
             - duration

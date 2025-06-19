@@ -36,9 +36,6 @@ type AccessRequestSpec struct {
 	// +kubebuilder:validation:Required
 	Reason string `json:"reason"`
 
-	// An optional reference to e.g.: a ticket number, an incident, ...
-	Reference string `json:"reference,omitempty"`
-
 	// Optional Time AccessRequests are valid for, after which they will be automatically deleted. Must be within max duration.
 	// If not defined, defaults from the requested rule.
 	Duration metav1.Duration `json:"duration"`
