@@ -1,5 +1,28 @@
-# Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+# Version
+GIT_HEAD_COMMIT ?= $(shell git rev-parse --short HEAD)
+VERSION         ?= $(or $(shell git describe --abbrev=0 --tags --match "v*" 2>/dev/null),$(GIT_HEAD_COMMIT))
+GOOS            ?= $(shell go env GOOS)
+GOARCH          ?= $(shell go env GOARCH)
+
+# Defaults
+REGISTRY        ?= ghcr.io
+REPOSITORY      ?= peak-scale/access-requests
+GIT_TAG_COMMIT  ?= $(shell git rev-parse --short $(VERSION))
+GIT_MODIFIED_1  ?= $(shell git diff $(GIT_HEAD_COMMIT) $(GIT_TAG_COMMIT) --quiet && echo "" || echo ".dev")
+GIT_MODIFIED_2  ?= $(shell git diff --quiet && echo "" || echo ".dirty")
+GIT_MODIFIED    ?= $(shell echo "$(GIT_MODIFIED_1)$(GIT_MODIFIED_2)")
+GIT_REPO        ?= $(shell git config --get remote.origin.url)
+BUILD_DATE      ?= $(shell git log -1 --format="%at" | xargs -I{} sh -c 'if [ "$(shell uname)" = "Darwin" ]; then date -r {} +%Y-%m-%dT%H:%M:%S; else date -d @{} +%Y-%m-%dT%H:%M:%S; fi')
+IMG_BASE        ?= $(REPOSITORY)
+IMG             ?= $(IMG_BASE):$(VERSION)
+FULL_IMG          ?= $(REGISTRY)/$(IMG_BASE)
+
+## Kubernetes Version Support
+KUBERNETES_SUPPORTED_VERSION ?= v1.33.0
+
+## Tool Binaries
+KUBECTL ?= kubectl
+HELM ?= helm
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -41,13 +64,30 @@ help: ## Display this help.
 
 ##@ Development
 
-.PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+# Generate License Header
+license-headers: nwa
+	$(NWA) config
 
-.PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+.PHONY: golint
+golint: golangci-lint
+	$(GOLANGCI_LINT) run -c .golangci.yml
+
+.PHONY: golint-fix
+golint-fix: golangci-lint
+	$(GOLANGCI_LINT) run -c .golangci.yml --fix
+
+manifests: controller-gen 
+	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true paths="./..." output:crd:artifacts:config=charts/access-requests/crds
+	make apidocs
+
+# Generate code
+generate: controller-gen
+	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
+
+apidocs: TARGET_DIR      := $(shell mktemp -d)
+apidocs: apidocs-gen generate
+	$(APIDOCS_GEN) crdoc --resources charts/access-requests/crds --output docs/reference.md --template ./hack/templates/crds.tmpl
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -58,36 +98,20 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet setup-envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+test: generate manifests
+	@GO111MODULE=on go test -v $(shell go list ./... | grep -v "e2e") -coverprofile coverage.out
 
-# TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
-# The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
-# CertManager is installed by default; skip with:
-# - CERT_MANAGER_INSTALL_SKIP=true
-.PHONY: test-e2e
-test-e2e: manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
-	@command -v $(KIND) >/dev/null 2>&1 || { \
-		echo "Kind is not installed. Please install Kind manually."; \
-		exit 1; \
-	}
-	@$(KIND) get clusters | grep -q 'kind' || { \
-		echo "No Kind cluster is running. Please start a Kind cluster before running the e2e tests."; \
-		exit 1; \
-	}
-	go test ./test/e2e/ -v -ginkgo.v
+.PHONY: test-clean
+test-clean: ## Clean tests cache
+	@go clean -testcache
 
 .PHONY: lint
-lint: golangci-lint ## Run golangci-lint linter
-	$(GOLANGCI_LINT) run
+lint: golangci-lint ## Run golangci-lint linter & yamllint
+	$(GOLANGCI_LINT) run -c .golangci.yml
 
 .PHONY: lint-fix
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
-	$(GOLANGCI_LINT) run --fix
-
-.PHONY: lint-config
-lint-config: golangci-lint ## Verify golangci-lint linter configuration
-	$(GOLANGCI_LINT) config verify
+	$(GOLANGCI_LINT) run -c .golangci.yml --fix
 
 ##@ Build
 
@@ -99,127 +123,205 @@ build: manifests generate fmt vet ## Build manager binary.
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./cmd/main.go
 
-# If you wish to build the manager image targeting other platforms you can use the --platform flag.
-# (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
-# More info: https://docs.docker.com/develop/develop-images/build_enhancements/
-.PHONY: docker-build
-docker-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) build -t ${IMG} .
+####################
+# -- Docker
+####################
 
-.PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	$(CONTAINER_TOOL) push ${IMG}
-
-# PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
-# architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
-# - be able to use docker buildx. More info: https://docs.docker.com/build/buildx/
-# - have enabled BuildKit. More info: https://docs.docker.com/develop/develop-images/build_enhancements/
-# - be able to push the image to your registry (i.e. if you do not set a valid value via IMG=<myregistry/image:<tag>> then the export will fail)
-# To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
-PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
-.PHONY: docker-buildx
-docker-buildx: ## Build and push docker image for the manager for cross-platform support
-	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
-	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
-	- $(CONTAINER_TOOL) buildx create --name access-requests-builder
-	$(CONTAINER_TOOL) buildx use access-requests-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMG} -f Dockerfile.cross .
-	- $(CONTAINER_TOOL) buildx rm access-requests-builder
-	rm Dockerfile.cross
-
-.PHONY: build-installer
-build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
-	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default > dist/install.yaml
-
-##@ Deployment
-
-ifndef ignore-not-found
-  ignore-not-found = false
+KO_PLATFORM     ?= linux/$(GOARCH)
+KOCACHE         ?= /tmp/ko-cache
+KO_REGISTRY     := ko.local
+KO_TAGS         ?= "latest"
+ifdef VERSION
+KO_TAGS         := $(KO_TAGS),$(VERSION)
 endif
 
-.PHONY: install
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
+BASE_DOCKERFILE ?= Dockerfile.base
+BASE_IMAGE_TAG ?= ko.local/peak-scale/sops-operator:base
+BASE_BUILD_ARGS ?= --load
+KO_DEFAULTBASEIMAGE := $(BASE_IMAGE_TAG)
 
-.PHONY: uninstall
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+LD_FLAGS        := "-X main.Version=$(VERSION) \
+					-X main.GitCommit=$(GIT_HEAD_COMMIT) \
+					-X main.GitTag=$(VERSION) \
+					-X main.GitTreeState=$(GIT_MODIFIED) \
+					-X main.BuildDate=$(BUILD_DATE) \
+					-X main.GitRepo=$(GIT_REPO)"
 
-.PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+# Docker Image Build
+# ------------------
+.PHONY: ko-build-controller
+ko-build-controller: ko build-base-image
+	@echo Building Controller $(FULL_IMG) - $(KO_TAGS) >&2
+	@LD_FLAGS=$(LD_FLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO=$(FULL_IMG) \
+		$(KO) build ./cmd/ --bare --tags=$(KO_TAGS) --push=false --local --platform=$(KO_PLATFORM)
 
-.PHONY: undeploy
-undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+.PHONY: ko-build-all
+ko-build-all:  ko-build-controller
 
-##@ Dependencies
+# Docker Image Publish
+# ------------------
+
+REGISTRY_PASSWORD   ?= dummy
+REGISTRY_USERNAME   ?= dummy
+
+.PHONY: ko-login
+ko-login: ko
+	@$(KO) login $(REGISTRY) --username $(REGISTRY_USERNAME) --password $(REGISTRY_PASSWORD)
+
+.PHONY: ko-publish-controller
+ko-publish-controller: ko-login
+	@echo Publishing Controller $(FULL_IMG) - $(KO_TAGS) >&2
+	@LD_FLAGS=$(LD_FLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO=$(FULL_IMG) \
+		$(KO) build ./cmd/ --bare --tags=$(KO_TAGS) --push=true
+
+.PHONY: ko-publish-all
+ko-publish-all: ko-publish-controller
+
+####################
+# -- Helm
+####################
+
+# Helm
+SRC_ROOT = $(shell git rev-parse --show-toplevel)
+
+helm-docs: helm-doc
+	$(HELM_DOCS) --chart-search-root ./charts
+
+helm-lint: ct
+	@$(CT) lint --config .github/configs/ct.yaml --lint-conf .github/configs/lintconf.yaml --all --debug
+
+helm-schema: helm-plugin-schema
+	cd charts/sops-operator && $(HELM) schema --use-helm-docs
+
+helm-test: kind ct
+	@$(KIND) create cluster --wait=60s --name helm-access-requests --image=kindest/node:$(KUBERNETES_SUPPORTED_VERSION)
+	@$(MAKE) helm-test-exec
+	@$(KIND) delete cluster --name helm-access-requests
+
+helm-test-exec: ct ko-build-all
+	@$(KIND) load docker-image --name helm-access-requests $(FULL_IMG):latest
+	@$(CT) install --config $(SRC_ROOT)/.github/configs/ct.yaml --all --debug
+
+
+####################
+# -- Install E2E Tools
+####################
+CLUSTER_NAME ?= "access-requests"
+
+e2e: e2e-build e2e-exec e2e-destroy
+
+e2e-build: kind
+	$(KIND) create cluster --wait=60s --config e2e/kind.yaml --name $(CLUSTER_NAME) --image=kindest/node:$(KUBERNETES_SUPPORTED_VERSION)
+	$(MAKE) e2e-install
+
+e2e-exec: ginkgo
+	$(GINKGO) -r -vv ./e2e
+
+e2e-destroy: kind
+	$(KIND) delete cluster --name $(CLUSTER_NAME)
+
+e2e-install: e2e-install-addon-helm
+
+e2e-install-addon-helm: VERSION :=v0.0.0
+e2e-install-addon-helm: KO_TAGS :=v0.0.0
+e2e-install-addon-helm: e2e-load-image ko-build-all
+	helm upgrade \
+	    --dependency-update \
+		--debug \
+		--install \
+		--namespace access-requests \
+		--create-namespace \
+		--set 'image.pullPolicy=Never' \
+		--set "image.tag=$(VERSION)" \
+		--set args.logLevel=10 \
+		--set args.pprof=true \
+		access-requests \
+		./charts/access-requests
+
+.PHONY: e2e-load-image
+e2e-load-image: kind ko-build-all
+	$(KIND) load docker-image --name $(CLUSTER_NAME) $(FULL_IMG):$(VERSION)
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
-## Tool Binaries
-KUBECTL ?= kubectl
-KIND ?= kind
-KUSTOMIZE ?= $(LOCALBIN)/kustomize
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-ENVTEST ?= $(LOCALBIN)/setup-envtest
-GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
+####################
+# -- Helm Plugins
+####################
+HELM_SCHEMA_VERSION   := ""
+helm-plugin-schema:
+	$(HELM) plugin install https://github.com/losisin/helm-values-schema-json.git --version $(HELM_SCHEMA_VERSION) || true
 
-## Tool Versions
-KUSTOMIZE_VERSION ?= v5.6.0
-CONTROLLER_TOOLS_VERSION ?= v0.17.2
-#ENVTEST_VERSION is the version of controller-runtime release branch to fetch the envtest setup script (i.e. release-0.20)
-ENVTEST_VERSION ?= $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller-runtime | awk -F'[v.]' '{printf "release-%d.%d", $$2, $$3}')
-#ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
-ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
-GOLANGCI_LINT_VERSION ?= v1.63.4
+HELM_DOCS         := $(LOCALBIN)/helm-docs
+HELM_DOCS_VERSION := v1.14.1
+HELM_DOCS_LOOKUP  := norwoodj/helm-docs
+helm-doc:
+	@test -s $(HELM_DOCS) || \
+	$(call go-install-tool,$(HELM_DOCS),github.com/$(HELM_DOCS_LOOKUP)/cmd/helm-docs@$(HELM_DOCS_VERSION))
 
-.PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
-$(KUSTOMIZE): $(LOCALBIN)
-	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
+####################
+# -- Tools
+####################
+CONTROLLER_GEN         := $(LOCALBIN)/controller-gen
+CONTROLLER_GEN_VERSION := v0.18.0
+CONTROLLER_GEN_LOOKUP  := kubernetes-sigs/controller-tools
+controller-gen:
+	@test -s $(CONTROLLER_GEN) && $(CONTROLLER_GEN) --version | grep -q $(CONTROLLER_GEN_VERSION) || \
+	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION))
 
-.PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
-$(CONTROLLER_GEN): $(LOCALBIN)
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
+GINKGO := $(LOCALBIN)/ginkgo
+ginkgo:
+	$(call go-install-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo)
 
-.PHONY: setup-envtest
-setup-envtest: envtest ## Download the binaries required for ENVTEST in the local bin directory.
-	@echo "Setting up envtest binaries for Kubernetes version $(ENVTEST_K8S_VERSION)..."
-	@$(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path || { \
-		echo "Error: Failed to set up envtest binaries for version $(ENVTEST_K8S_VERSION)."; \
-		exit 1; \
-	}
+NWA           := $(LOCALBIN)/nwa
+NWA_VERSION   := v0.7.4
+NWA_LOOKUP    := B1NARY-GR0UP/nwa
+nwa:
+	@test -s $(NWA) && $(NWA) -h | grep -q $(NWA_VERSION) || \
+	$(call go-install-tool,$(NWA),github.com/$(NWA_LOOKUP)@$(NWA_VERSION))
 
-.PHONY: envtest
-envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
-$(ENVTEST): $(LOCALBIN)
-	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
+CT         := $(LOCALBIN)/ct
+CT_VERSION := v3.13.0
+CT_LOOKUP  := helm/chart-testing
+ct:
+	@test -s $(CT) && $(CT) version | grep -q $(CT_VERSION) || \
+	$(call go-install-tool,$(CT),github.com/$(CT_LOOKUP)/v3/ct@$(CT_VERSION))
 
-.PHONY: golangci-lint
-golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
-$(GOLANGCI_LINT): $(LOCALBIN)
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,$(GOLANGCI_LINT_VERSION))
+KIND         := $(LOCALBIN)/kind
+KIND_VERSION := v0.29.0
+KIND_LOOKUP  := kubernetes-sigs/kind
+kind:
+	@test -s $(KIND) && $(KIND) --version | grep -q $(KIND_VERSION) || \
+	$(call go-install-tool,$(KIND),sigs.k8s.io/kind/cmd/kind@$(KIND_VERSION))
 
-# go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
-# $1 - target path with name of binary
-# $2 - package url which can be installed
-# $3 - specific version of package
+KO           := $(LOCALBIN)/ko
+KO_VERSION   := v0.18.0
+KO_LOOKUP    := google/ko
+ko:
+	@test -s $(KO) && $(KO) -h | grep -q $(KO_VERSION) || \
+	$(call go-install-tool,$(KO),github.com/$(KO_LOOKUP)@$(KO_VERSION))
+
+GOLANGCI_LINT          := $(LOCALBIN)/golangci-lint
+GOLANGCI_LINT_VERSION  := v2.1.6
+GOLANGCI_LINT_LOOKUP   := golangci/golangci-lint
+golangci-lint: ## Download golangci-lint locally if necessary.
+	@test -s $(GOLANGCI_LINT) && $(GOLANGCI_LINT) -h | grep -q $(GOLANGCI_LINT_VERSION) || \
+	$(call go-install-tool,$(GOLANGCI_LINT),github.com/$(GOLANGCI_LINT_LOOKUP)/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION))
+
+APIDOCS_GEN         := $(LOCALBIN)/crdoc
+APIDOCS_GEN_VERSION := v0.6.4
+APIDOCS_GEN_LOOKUP  := fybrik/crdoc
+apidocs-gen: ## Download crdoc locally if necessary.
+	@test -s $(APIDOCS_GEN) && $(APIDOCS_GEN) --version | grep -q $(APIDOCS_GEN_VERSION) || \
+	$(call go-install-tool,$(APIDOCS_GEN),fybrik.io/crdoc@$(APIDOCS_GEN_VERSION))
+
+# go-install-tool will 'go install' any package $2 and install it to $1.
+PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 define go-install-tool
-@[ -f "$(1)-$(3)" ] || { \
-set -e; \
-package=$(2)@$(3) ;\
-echo "Downloading $${package}" ;\
-rm -f $(1) || true ;\
-GOBIN=$(LOCALBIN) go install $${package} ;\
-mv $(1) $(1)-$(3) ;\
-} ;\
-ln -sf $(1)-$(3) $(1)
+[ -f $(1) ] || { \
+    set -e ;\
+    GOBIN=$(LOCALBIN) go install $(2) ;\
+}
 endef

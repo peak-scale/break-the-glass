@@ -1,0 +1,244 @@
+# Global Values
+global:
+  # Global Values for jobs
+  jobs:
+    # kubectl job configuration
+    kubectl:
+      image:
+        # -- Set the image repository of the helm chart job
+        registry: docker.io
+        # -- Set the image repository of the helm chart job
+        repository: clastix/kubectl
+        # -- Set the image pull policy of the helm chart job
+        pullPolicy: IfNotPresent
+        # -- Set the image tag of the helm chart job
+        tag: ""
+      # -- Annotations to add to the certgen job.
+      annotations: {}
+      # -- Set the restartPolicy
+      restartPolicy: Never
+      # -- Sets the ttl in seconds after a finished certgen job is deleted. Set to -1 to never delete.
+      ttlSecondsAfterFinished: 60
+      # -- Security context for the job pods.
+      podSecurityContext:
+        seccompProfile:
+          type: "RuntimeDefault"
+      # -- Security context for the job containers.
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        readOnlyRootFilesystem: true
+        runAsGroup: 1002
+        runAsNonRoot: true
+        runAsUser: 1002
+      # -- Job resources
+      resources: {}
+      # -- Set the node selector
+      nodeSelector: {}
+      # -- Set list of tolerations
+      tolerations: []
+      # -- Set affinity rules
+      affinity: {}
+      # -- Set Topology Spread Constraints
+      topologySpreadConstraints: []
+      # -- Set a pod priorityClassName
+      priorityClassName: ""
+
+# Manage CRD Lifecycle
+crds:
+  # -- Install the CustomResourceDefinitions (This also manages the lifecycle of the CRDs for update operations)
+  install: true
+  # -- Extra Labels for CRDs
+  labels: {}
+  # -- Extra Annotations for CRDs
+  annnotations: {}
+  # -- Keep the annotations if deleted
+  keep: false
+
+rbac:
+  # -- Enable bootstraping of RBAC resources
+  enabled: true
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Arguments for the controller
+args:
+  # -- Enable Profiling
+  pprof: false
+  # -- Log Level
+  logLevel: 4
+  # -- A list of extra arguments to add to the access-requests operator
+  extraArgs: []
+
+# -- Amount of replicas
+replicaCount: 1
+image:
+  # -- Set the image registry
+  registry: ghcr.io
+  # -- Set the image repository
+  repository: peak-scale/access-requests
+  # -- Set the image pull policy.
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+# -- Configuration for `imagePullSecrets` so that you can use a private images registry.
+imagePullSecrets: []
+
+serviceAccount:
+  # -- Specifies whether a service account should be created.
+  create: true
+  # -- Annotations to add to the service account.
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+   # -- The name of the service account to use.
+  name: ""
+
+# -- Annotations to add
+podAnnotations: {}
+
+# -- Set the securityContext
+podSecurityContext:
+  enabled: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Set the securityContext for the container
+securityContext:
+  enabled: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# -- Configure the liveness probe using Deployment probe spec
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 10080
+
+# -- Configure the readiness probe using Deployment probe spec
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 10080
+
+# -- Set the resource requests/limits
+resources: {}
+# limits:
+#   cpu: 200m
+#   memory: 128Mi
+# requests:
+#   cpu: 100m
+#   memory: 128Mi
+
+# -- Set the priority class name of the Capsule pod
+priorityClassName: '' # system-cluster-critical
+
+# -- Set the node selector
+nodeSelector: {}
+
+# -- Set list of tolerations
+tolerations: []
+
+# -- Set affinity rules
+affinity: {}
+
+# -- Set topology spread constraints
+topologySpreadConstraints: []
+
+# Monitoring Values
+monitoring:
+  # -- Enable Monitoring of the Operator
+  enabled: false
+  # ServiceMonitor
+  serviceMonitor:
+    # -- Enable ServiceMonitor
+    enabled: true
+    # -- Install the ServiceMonitor into a different Namespace, as the monitoring stack one (default: the release one)
+    namespace: ''
+    # -- Assign additional labels according to Prometheus' serviceMonitorSelector matching labels
+    labels: {}
+    # -- Assign additional Annotations
+    annotations: {}
+    # -- Change matching labels
+    matchLabels: {}
+    # -- Prometheus Joblabel
+    jobLabel: app.kubernetes.io/name
+    # -- Set targetLabels for the serviceMonitor
+    targetLabels: []
+    serviceAccount:
+      # @default -- `capsule-proxy`
+      name: ""
+      # @default -- `.Release.Namespace`
+      namespace: ""
+    endpoint:
+      # -- Set the scrape interval for the endpoint of the serviceMonitor
+      interval: "15s"
+      # -- Set the scrape timeout for the endpoint of the serviceMonitor
+      scrapeTimeout: ""
+      # -- Set metricRelabelings for the endpoint of the serviceMonitor
+      metricRelabelings: []
+      # -- Set relabelings for the endpoint of the serviceMonitor
+      relabelings: []
+
+# Webhook Values
+webhooks:
+  # -- Enable the usage of mutating and validating webhooks
+  enabled: true
+
+  # Configure custom webhook service
+  service:
+    # -- The URL where the capsule webhook services are running (Overwrites cluster scoped service definition)
+    url: ""
+    # -- CABundle for the webhook service
+    caBundle: ""
+    # -- Custom service name for the webhook service
+    name: ""
+    # -- Custom service namespace for the webhook service
+    namespace: ""
+    # -- Custom service port for the webhook service
+    port:
+
+  # Requires cert-manager
+  certificate:
+    # -- Additional DNS Names to include in certificate
+    dnsNames: []
+    # -- Additional IP Addresses to include in certificate
+    ipAddresses: []
+    # -- Additional URIs to include in certificate
+    uris: []
+    # -- Additional fields to include in certificate
+    fields:
+      privateKey:
+        rotationPolicy: 'Always'
+
+  accessrequests:
+    # -- Enable webhook for access requests
+    enabled: true
+    # -- Timeout in seconds for mutating webhooks
+    timeoutSeconds: 3s
+    # We don't want to disturb operations if this webhook is not available
+    # -- Ignore failures from the webhook
+    failurePolicy: 'Ignore'
+    # -- Rules for which Objects and Actions this webhook should be called
+    rules:
+    - apiGroups:
+      - "argoproj.io"
+      apiVersions:
+      - "*"
+      operations:
+      - CREATE
+      resources:
+      - "accessrequests"
+      scope: "Namespaced"
+    # -- Selects only namespaced items which are within a tenant
+    namespaceSelector: {}
+

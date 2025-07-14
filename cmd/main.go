@@ -36,9 +36,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	addonsv1alpha1 "github.com/peak-scale/access-requests/api/v1alpha1"
 	"github.com/peak-scale/access-requests/internal/controller"
+	"github.com/peak-scale/access-requests/internal/webhooks"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -59,7 +61,7 @@ func main() {
 	var metricsAddr string
 	var metricsCertPath, metricsCertName, metricsCertKey string
 	var webhookCertPath, webhookCertName, webhookCertKey string
-	var enableLeaderElection bool
+	var enableLeaderElection, enablePprof, hooks bool
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
@@ -81,6 +83,9 @@ func main() {
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.BoolVar(&enablePprof, "enable-pprof", false, "Enables Pprof endpoint for profiling (not recommend in production)")
+	flag.BoolVar(&hooks, "enable-webhooks", false, "Register Mutating Webhooks to be serving")
+
 	opts := zap.Options{
 		Development: true,
 	}
@@ -129,10 +134,6 @@ func main() {
 		})
 	}
 
-	webhookServer := webhook.NewServer(webhook.Options{
-		TLSOpts: webhookTLSOpts,
-	})
-
 	// Metrics endpoint is enabled in 'config/default/kustomization.yaml'. The Metrics options configure the server.
 	// More info:
 	// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.4/pkg/metrics/server
@@ -178,28 +179,41 @@ func main() {
 		})
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	ctrlConfig := ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
-		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "872932ca.projectcapsule.dev",
-		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
-		// when the Manager ends. This requires the binary to immediately end when the
-		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
-		// speeds up voluntary leader transitions as the new leader don't have to wait
-		// LeaseDuration time first.
-		//
-		// In the default scaffold provided, the program ends immediately after
-		// the manager stops, so would be fine to enable this option. However,
-		// if you are doing or is intended to do any operation such as perform cleanups
-		// after the manager stops then its usage might be unsafe.
-		// LeaderElectionReleaseOnCancel: true,
-	})
+	}
+
+	// Conditional config
+	if hooks {
+		ctrlConfig.WebhookServer = webhook.NewServer(webhook.Options{
+			Port:    9443,
+			TLSOpts: webhookTLSOpts,
+		})
+	}
+
+	if enablePprof {
+		ctrlConfig.PprofBindAddress = ":8082"
+	}
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrlConfig)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
+	}
+
+	if hooks {
+		setupLog.Info("registering webhooks")
+		mgr.GetWebhookServer().Register("/accessrequests/mutate", &admission.Webhook{
+			Handler: &webhooks.AccessRequestMutatingWebhook{
+				Decoder: admission.NewDecoder(mgr.GetScheme()),
+				Client:  mgr.GetClient(),
+				Log:     ctrl.Log.WithName("Webhooks").WithName("AccessRequests"),
+			},
+		})
 	}
 
 	if err = (&controller.AccessRuleReconciler{
@@ -210,8 +224,9 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controller.AccessRequestReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("access-request-ctrl"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AccessRequest")
 		os.Exit(1)

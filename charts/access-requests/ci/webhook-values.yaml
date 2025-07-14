@@ -1,0 +1,4 @@
+image:
+  pullPolicy: Never
+webhooks:
+  enabled: true
