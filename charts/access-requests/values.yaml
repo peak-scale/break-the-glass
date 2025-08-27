@@ -220,8 +220,8 @@ webhooks:
       privateKey:
         rotationPolicy: 'Always'
 
-  accessrequests:
-    # -- Enable webhook for access requests
+  requests:
+    # -- Enable webhook for break requests
     enabled: true
     # -- Timeout in seconds for mutating webhooks
     timeoutSeconds: 3s
@@ -231,13 +231,15 @@ webhooks:
     # -- Rules for which Objects and Actions this webhook should be called
     rules:
     - apiGroups:
-      - "argoproj.io"
+      - "addons.projectcapsule.dev"
       apiVersions:
       - "*"
       operations:
       - CREATE
+      - UPDATE
+      - DELETE
       resources:
-      - "accessrequests"
+      - "breakrequests"
       scope: "Namespaced"
     # -- Selects only namespaced items which are within a tenant
     namespaceSelector: {}

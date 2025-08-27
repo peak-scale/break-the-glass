@@ -45,6 +45,9 @@ SHELL = /usr/bin/env bash -o pipefail
 .PHONY: all
 all: build
 
+plugin-build:
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o kubectl-accessdev plugin/main.go
+
 ##@ General
 
 # The help target prints out all targets with their descriptions organized
@@ -135,11 +138,6 @@ ifdef VERSION
 KO_TAGS         := $(KO_TAGS),$(VERSION)
 endif
 
-BASE_DOCKERFILE ?= Dockerfile.base
-BASE_IMAGE_TAG ?= ko.local/peak-scale/sops-operator:base
-BASE_BUILD_ARGS ?= --load
-KO_DEFAULTBASEIMAGE := $(BASE_IMAGE_TAG)
-
 LD_FLAGS        := "-X main.Version=$(VERSION) \
 					-X main.GitCommit=$(GIT_HEAD_COMMIT) \
 					-X main.GitTag=$(VERSION) \
@@ -150,7 +148,7 @@ LD_FLAGS        := "-X main.Version=$(VERSION) \
 # Docker Image Build
 # ------------------
 .PHONY: ko-build-controller
-ko-build-controller: ko build-base-image
+ko-build-controller: ko 
 	@echo Building Controller $(FULL_IMG) - $(KO_TAGS) >&2
 	@LD_FLAGS=$(LD_FLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO=$(FULL_IMG) \
 		$(KO) build ./cmd/ --bare --tags=$(KO_TAGS) --push=false --local --platform=$(KO_PLATFORM)
@@ -220,7 +218,7 @@ e2e-exec: ginkgo
 e2e-destroy: kind
 	$(KIND) delete cluster --name $(CLUSTER_NAME)
 
-e2e-install: e2e-install-addon-helm
+e2e-install: e2e-install-distro e2e-install-addon-helm
 
 e2e-install-addon-helm: VERSION :=v0.0.0
 e2e-install-addon-helm: KO_TAGS :=v0.0.0
@@ -238,9 +236,72 @@ e2e-install-addon-helm: e2e-load-image ko-build-all
 		access-requests \
 		./charts/access-requests
 
+e2e-install-distro:
+	@$(KUBECTL) kustomize e2e/manifests/flux/ | kubectl apply -f -
+	@$(KUBECTL) kustomize e2e/manifests/distro/ | kubectl apply -f -
+	@$(MAKE) wait-for-helmreleases
+
 .PHONY: e2e-load-image
 e2e-load-image: kind ko-build-all
 	$(KIND) load docker-image --name $(CLUSTER_NAME) $(FULL_IMG):$(VERSION)
+
+wait-for-helmreleases:
+	@ echo "Waiting for all HelmReleases to have observedGeneration >= 0..."
+	@while [ "$$(kubectl get helmrelease -A -o jsonpath='{range .items[?(@.status.observedGeneration<0)]}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' | wc -l)" -ne 0 ]; do \
+	  sleep 5; \
+	done
+
+# Setup development env
+# Usage:
+# 	LAPTOP_HOST_IP=<YOUR_LAPTOP_IP> make dev-setup
+# For example:
+#	LAPTOP_HOST_IP=192.168.10.101 make dev-setup
+define TLS_CNF
+[ req ]
+default_bits       = 4096
+distinguished_name = req_distinguished_name
+req_extensions     = req_ext
+[ req_distinguished_name ]
+countryName                = SG
+stateOrProvinceName        = SG
+localityName               = SG
+organizationName           = CAPSULE
+commonName                 = CAPSULE
+[ req_ext ]
+subjectAltName = @alt_names
+[alt_names]
+IP.1   = $(LAPTOP_HOST_IP)
+endef
+export TLS_CNF
+dev-setup:
+	mkdir -p /tmp/k8s-webhook-server/serving-certs
+	echo "$${TLS_CNF}" > _tls.cnf
+	openssl req -newkey rsa:4096 -days 3650 -nodes -x509 \
+		-subj "/C=SG/ST=SG/L=SG/O=CAPSULE/CN=CAPSULE" \
+		-extensions req_ext \
+		-config _tls.cnf \
+		-keyout /tmp/k8s-webhook-server/serving-certs/tls.key \
+		-out /tmp/k8s-webhook-server/serving-certs/tls.crt
+	$(KUBECTL) create secret tls capsule-tls -n capsule-system \
+		--cert=/tmp/k8s-webhook-server/serving-certs/tls.crt\
+		--key=/tmp/k8s-webhook-server/serving-certs/tls.key || true
+	rm -f _tls.cnf
+	export WEBHOOK_URL="https://$${LAPTOP_HOST_IP}:9443"; \
+	export CA_BUNDLE=`openssl base64 -in /tmp/k8s-webhook-server/serving-certs/tls.crt | tr -d '\n'`; \
+	$(HELM) upgrade \
+	    --dependency-update \
+		--debug \
+		--install \
+		--namespace access-requests \
+		--create-namespace \
+		--set 'image.pullPolicy=Never' \
+		--set "image.tag=$(VERSION)" \
+		--set args.logLevel=10 \
+		--set args.pprof=true \
+		access-requests \
+		./charts/access-requests
+	$(KUBECTL) -n access-requests scale deployment --all --replicas=0 || true
+
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin

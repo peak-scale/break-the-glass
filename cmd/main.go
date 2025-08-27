@@ -38,9 +38,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	addonsv1alpha1 "github.com/peak-scale/access-requests/api/v1alpha1"
-	"github.com/peak-scale/access-requests/internal/controller"
-	"github.com/peak-scale/access-requests/internal/webhooks"
+	addonsv1alpha1 "github.com/peak-scale/break-the-glass/api/v1alpha1"
+	"github.com/peak-scale/break-the-glass/internal/controller"
+	"github.com/peak-scale/break-the-glass/internal/metrics"
+	"github.com/peak-scale/break-the-glass/internal/webhooks"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -207,28 +208,23 @@ func main() {
 
 	if hooks {
 		setupLog.Info("registering webhooks")
-		mgr.GetWebhookServer().Register("/accessrequests/mutate", &admission.Webhook{
+		mgr.GetWebhookServer().Register("/requests/mutate", &admission.Webhook{
 			Handler: &webhooks.AccessRequestMutatingWebhook{
 				Decoder: admission.NewDecoder(mgr.GetScheme()),
 				Client:  mgr.GetClient(),
-				Log:     ctrl.Log.WithName("Webhooks").WithName("AccessRequests"),
+				Log:     ctrl.Log.WithName("Webhooks").WithName("BreakRequests"),
 			},
 		})
 	}
 
-	if err = (&controller.AccessRuleReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "AccessRule")
-		os.Exit(1)
-	}
-	if err = (&controller.AccessRequestReconciler{
+	if err = (&controller.BreakRequestReconciler{
 		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("Controllers").WithName("BreakRequests"),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor("access-request-ctrl"),
+		Metrics:  *metrics.MustMakeBreakRequestsRecorder(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "AccessRequest")
+		setupLog.Error(err, "unable to create controller", "controller", "BreakRequests")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

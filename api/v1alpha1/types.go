@@ -26,13 +26,17 @@ const (
 	AccessEntityTypeSystem AccessEntityType = "System"
 )
 
+func (t AccessEntityType) String() string {
+	return string(t)
+
+}
+
 type AccessEntity struct {
 	// The name of the entity
-	// +kubebuilder:validation:Required
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 	// The type of the entity
 	// +kubebuilder:validation:Enum=User;Group;System
-	Type AccessEntityType `json:"type"`
+	Type AccessEntityType `json:"type,omitempty"`
 }
 
 // AccessRequestStatus defines the observed state of AccessRequest.

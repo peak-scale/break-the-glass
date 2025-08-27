@@ -1,0 +1,12 @@
+apiVersion: addons.projectcapsule.dev/v1alpha1
+kind: BreakRequest
+metadata:
+  name: grant-admin
+spec:
+  items:
+    - apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: game-demo
+      data:
+        player_initial_lives: "3"

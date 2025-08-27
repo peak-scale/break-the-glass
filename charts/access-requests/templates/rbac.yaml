@@ -24,6 +24,20 @@ rules:
     - delete
     - deletecollection
 - apiGroups:
+    - "addons.projectcapsule.dev"
+  resources:
+    - breakrequests
+    - breakrequests/status
+  verbs:
+    - create
+    - get
+    - list
+    - update
+    - patch
+    - watch
+    - delete
+    - deletecollection
+- apiGroups:
     - ""
   resources:
     - events

@@ -8,12 +8,12 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "helm.fullname" . }}-webhook-cert
 webhooks:
-  {{- with .Values.webhooks.applications }}
+  {{- with .Values.webhooks.requests }}
     {{- if .enabled }}
 - admissionReviewVersions:
   - v1
   clientConfig:
-    {{- include "helm.webhooks.service" (dict "path" "/mutate/accessrequests" "ctx" $) | nindent 4 }}
+    {{- include "helm.webhooks.service" (dict "path" "/mutate/requests" "ctx" $) | nindent 4 }}
   failurePolicy: {{ .failurePolicy }}
   name: requests.access.projectcapsule.dev
   {{- with .rules }}
