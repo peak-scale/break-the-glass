@@ -1,4 +1,4 @@
-project_name: access-requests
+project_name: break-glass
 env:
   - COSIGN_EXPERIMENTAL=true
   - GO111MODULE=on

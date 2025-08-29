@@ -40,7 +40,8 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "", "default", "Namespace of the AccessRequest")
+	rootCmd.PersistentFlags().
+		StringVarP(&namespace, "namespace", "n", "default", "Namespace of the AccessRequest")
 
 	// Add subcommands
 	rootCmd.AddCommand(reviewCmd)

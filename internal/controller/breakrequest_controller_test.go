@@ -21,16 +21,20 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	addonsv1alpha1 "github.com/peak-scale/access-requests/api/v1alpha1"
+	addonsv1alpha1 "github.com/peak-scale/break-the-glass/api/v1alpha1"
 )
 
-var _ = Describe("AccessRequest Controller", func() {
+var _ = Describe("BreakRequest Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
@@ -38,47 +42,62 @@ var _ = Describe("AccessRequest Controller", func() {
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: "default",
 		}
-		accessrequest := &addonsv1alpha1.AccessRequest{}
+		BreakRequest := &addonsv1alpha1.BreakRequest{}
+		var (
+			controllerReconciler *BreakRequestReconciler
+		)
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind AccessRequest")
-			err := k8sClient.Get(ctx, typeNamespacedName, accessrequest)
+			By("creating the custom resource for the Kind BreakRequest")
+			err := k8sClient.Get(ctx, typeNamespacedName, BreakRequest)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &addonsv1alpha1.AccessRequest{
+				resource := &addonsv1alpha1.BreakRequest{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: addonsv1alpha1.BreakRequestSpec{
+						Items: []runtime.RawExtension{
+							{Object: &v1.ConfigMap{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      "test-configmap",
+									Namespace: "default",
+								},
+							}},
+						},
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			}
+			controllerReconciler = &BreakRequestReconciler{
+				Client:   k8sClient,
+				Scheme:   k8sClient.Scheme(),
+				Recorder: &record.FakeRecorder{},
+				Log:      ctrl.Log,
 			}
 		})
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &addonsv1alpha1.AccessRequest{}
+			resource := &addonsv1alpha1.BreakRequest{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance AccessRequest")
+			By("Cleanup the specific resource instance BreakRequest")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			controllerReconciler := &AccessRequestReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+			resource := &addonsv1alpha1.BreakRequest{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
 		})
 	})
 })

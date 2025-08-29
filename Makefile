@@ -6,7 +6,7 @@ GOARCH          ?= $(shell go env GOARCH)
 
 # Defaults
 REGISTRY        ?= ghcr.io
-REPOSITORY      ?= peak-scale/access-requests
+REPOSITORY      ?= peak-scale/break-the-glass
 GIT_TAG_COMMIT  ?= $(shell git rev-parse --short $(VERSION))
 GIT_MODIFIED_1  ?= $(shell git diff $(GIT_HEAD_COMMIT) $(GIT_TAG_COMMIT) --quiet && echo "" || echo ".dev")
 GIT_MODIFIED_2  ?= $(shell git diff --quiet && echo "" || echo ".dirty")
@@ -80,7 +80,7 @@ golint-fix: golangci-lint
 	$(GOLANGCI_LINT) run -c .golangci.yml --fix
 
 manifests: controller-gen 
-	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true paths="./..." output:crd:artifacts:config=charts/access-requests/crds
+	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true paths="./..." output:crd:artifacts:config=charts/break-the-glass/crds
 	make apidocs
 
 # Generate code
@@ -90,7 +90,7 @@ generate: controller-gen
 
 apidocs: TARGET_DIR      := $(shell mktemp -d)
 apidocs: apidocs-gen generate
-	$(APIDOCS_GEN) crdoc --resources charts/access-requests/crds --output docs/reference.md --template ./hack/templates/crds.tmpl
+	$(APIDOCS_GEN) crdoc --resources charts/break-the-glass/crds --output docs/reference.md --template ./hack/templates/crds.tmpl
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -101,7 +101,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: generate manifests
+test: generate manifests mocks setup-envtest
 	@GO111MODULE=on go test -v $(shell go list ./... | grep -v "e2e") -coverprofile coverage.out
 
 .PHONY: test-clean
@@ -115,6 +115,11 @@ lint: golangci-lint ## Run golangci-lint linter & yamllint
 .PHONY: lint-fix
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 	$(GOLANGCI_LINT) run -c .golangci.yml --fix
+
+# generate mocks
+.PHONY: mocks
+mocks: mockgen
+	$(MOCKGEN) -destination internal/mocks/client/mock.go sigs.k8s.io/controller-runtime/pkg/client Client,SubResourceWriter
 
 ##@ Build
 
@@ -192,19 +197,19 @@ helm-schema: helm-plugin-schema
 	cd charts/sops-operator && $(HELM) schema --use-helm-docs
 
 helm-test: kind ct
-	@$(KIND) create cluster --wait=60s --name helm-access-requests --image=kindest/node:$(KUBERNETES_SUPPORTED_VERSION)
+	@$(KIND) create cluster --wait=60s --name helm-break-the-glass --image=kindest/node:$(KUBERNETES_SUPPORTED_VERSION)
 	@$(MAKE) helm-test-exec
-	@$(KIND) delete cluster --name helm-access-requests
+	@$(KIND) delete cluster --name helm-break-the-glass
 
 helm-test-exec: ct ko-build-all
-	@$(KIND) load docker-image --name helm-access-requests $(FULL_IMG):latest
+	@$(KIND) load docker-image --name helm-break-the-glass $(FULL_IMG):latest
 	@$(CT) install --config $(SRC_ROOT)/.github/configs/ct.yaml --all --debug
 
 
 ####################
 # -- Install E2E Tools
 ####################
-CLUSTER_NAME ?= "access-requests"
+CLUSTER_NAME ?= "break-the-glass"
 
 e2e: e2e-build e2e-exec e2e-destroy
 
@@ -227,14 +232,14 @@ e2e-install-addon-helm: e2e-load-image ko-build-all
 	    --dependency-update \
 		--debug \
 		--install \
-		--namespace access-requests \
+		--namespace break-the-glass \
 		--create-namespace \
 		--set 'image.pullPolicy=Never' \
 		--set "image.tag=$(VERSION)" \
 		--set args.logLevel=10 \
 		--set args.pprof=true \
-		access-requests \
-		./charts/access-requests
+		break-the-glass \
+		./charts/break-the-glass
 
 e2e-install-distro:
 	@$(KUBECTL) kustomize e2e/manifests/flux/ | kubectl apply -f -
@@ -292,15 +297,15 @@ dev-setup:
 	    --dependency-update \
 		--debug \
 		--install \
-		--namespace access-requests \
+		--namespace break-the-glass \
 		--create-namespace \
 		--set 'image.pullPolicy=Never' \
 		--set "image.tag=$(VERSION)" \
 		--set args.logLevel=10 \
 		--set args.pprof=true \
-		access-requests \
-		./charts/access-requests
-	$(KUBECTL) -n access-requests scale deployment --all --replicas=0 || true
+		break-the-glass \
+		./charts/break-the-glass
+	$(KUBECTL) -n break-the-glass scale deployment --all --replicas=0 || true
 
 
 ## Location to install dependencies to
@@ -364,6 +369,20 @@ ko:
 	@test -s $(KO) && $(KO) -h | grep -q $(KO_VERSION) || \
 	$(call go-install-tool,$(KO),github.com/$(KO_LOOKUP)@$(KO_VERSION))
 
+ENVTEST             ?= $(LOCALBIN)/setup-envtest
+ENVTEST_VERSION     ?= $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller-runtime | awk -F'[v.]' '{printf "release-%d.%d", $$2, $$3}')
+ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
+envtest:
+	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
+
+.PHONY: setup-envtest
+setup-envtest: envtest ## Download the binaries required for ENVTEST in the local bin directory.
+	@echo "Setting up envtest binaries for Kubernetes version $(ENVTEST_K8S_VERSION)..."
+	@$(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path || { \
+		echo "Error: Failed to set up envtest binaries for version $(ENVTEST_K8S_VERSION)."; \
+		exit 1; \
+	}
+
 GOLANGCI_LINT          := $(LOCALBIN)/golangci-lint
 GOLANGCI_LINT_VERSION  := v2.1.6
 GOLANGCI_LINT_LOOKUP   := golangci/golangci-lint
@@ -377,6 +396,14 @@ APIDOCS_GEN_LOOKUP  := fybrik/crdoc
 apidocs-gen: ## Download crdoc locally if necessary.
 	@test -s $(APIDOCS_GEN) && $(APIDOCS_GEN) --version | grep -q $(APIDOCS_GEN_VERSION) || \
 	$(call go-install-tool,$(APIDOCS_GEN),fybrik.io/crdoc@$(APIDOCS_GEN_VERSION))
+
+
+MOCKGEN         := $(LOCALBIN)/mockgen
+MOCKGEN_VERSION := v0.6.0
+MOCKGEN_LOOKUP  := go.uber.org/mock/mockgen
+mockgen:
+	@test -s $(MOCKGEN) && $(MOCKGEN) -version | grep -q $(MOCKGEN_VERSION) || \
+	$(call go-install-tool,$(MOCKGEN),$(MOCKGEN_LOOKUP)@$(MOCKGEN_VERSION))
 
 # go-install-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))

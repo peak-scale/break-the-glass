@@ -18,8 +18,8 @@ spec:
     - jsonPath: .spec.reason
       name: Reason
       type: date
-    - jsonPath: .spec.reference
-      name: Reference
+    - jsonPath: .status.review.verdict
+      name: Verdict
       type: string
     - jsonPath: .status.duration
       name: ActiveFrom
@@ -72,15 +72,15 @@ spec:
                 description: Actual Items being requested
                 items:
                   type: object
-                  x-kubernetes-embedded-resource: true
                   x-kubernetes-preserve-unknown-fields: true
                 type: array
               keepFor:
                 description: |-
                   The duration this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
                   If not set, the AccessRequest will be deleted after expiring.
+                pattern: ^(([0-9]+(\.[0-9]+)?)+(m|h|d|w))+$
                 type: string
-              reaso:
+              reason:
                 description: A reason on why the request is needed
                 type: string
               requestor:
@@ -128,10 +128,10 @@ spec:
                   items:
                     items:
                       type: object
-                      x-kubernetes-embedded-resource: true
                       x-kubernetes-preserve-unknown-fields: true
                     type: array
                   keepFor:
+                    pattern: ^(([0-9]+(\.[0-9]+)?)+(m|h|d|w))+$
                     type: string
                   startTime:
                     format: date-time

@@ -22,7 +22,10 @@ type AccessRequestMutatingWebhook struct {
 }
 
 // Handle processes the admission request and adds a label if necessary.
-func (mw *AccessRequestMutatingWebhook) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (mw *AccessRequestMutatingWebhook) Handle(
+	ctx context.Context,
+	req admission.Request,
+) admission.Response {
 	mw.Log.V(7).Info("Received Request")
 
 	// Decode the object
@@ -53,7 +56,10 @@ type AccessRequestValidatingWebhook struct {
 }
 
 // Handle processes the admission request and adds a label if necessary.
-func (mw *AccessRequestValidatingWebhook) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (mw *AccessRequestValidatingWebhook) Handle(
+	ctx context.Context,
+	req admission.Request,
+) admission.Response {
 	mw.Log.V(7).Info("Received Request")
 
 	// Decode the object
