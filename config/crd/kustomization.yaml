@@ -4,6 +4,7 @@
 resources:
 - bases/addons.projectcapsule.dev_accessrules.yaml
 - bases/addons.projectcapsule.dev_accessrequests.yaml
+- bases/addons.projectcapsule.dev_breakrequesttemplates.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

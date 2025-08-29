@@ -31,13 +31,13 @@ type BreakRequestSpec struct {
 	Items []runtime.RawExtension `json:"items,omitempty"`
 	// A reason on why the request is needed
 	Reason string `json:"reason,omitempty"`
-	// The duration this AccessRequest should be valid for.
+	// The duration this BreakRequest should be valid for.
 	// If no duration was defined the lifecycle is bound to the request itself -
 	// if the request is deleted, it's the end of the duration.
 	// The Request can also be Terminated by another automation via calling the ExpireRequest() API-Function.
 	Duration metav1.Duration `json:"duration,omitempty"`
-	// The duration this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
-	// If not set, the AccessRequest will be deleted after expiring.
+	// The duration this BreakRequest will be kept in the system after it has been expired (eg. auditing purposes)
+	// If not set, the BreakRequest will be deleted after expiring.
 	KeepFor api.ExtendedDuration `json:"keepFor,omitempty"`
 	// Optional point in time when the access should begin. Must be in the future.
 	// If omitted, this is set to the current time. The Request must already be approved before the start time.
@@ -123,7 +123,7 @@ const (
 // +kubebuilder:printcolumn:name="ActiveUntil",type=string,JSONPath=`.status.activeFrom`,priority=10
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 
-// BreakRequest is the Schema for the accessrequests API.
+// BreakRequest is the Schema for the BreakRequests API.
 type BreakRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -134,7 +134,7 @@ type BreakRequest struct {
 
 // +kubebuilder:object:root=true
 
-// AccessRequestList contains a list of AccessRequest.
+// BreakRequestList contains a list of BreakRequest.
 type BreakRequestList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

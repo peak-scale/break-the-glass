@@ -5,16 +5,17 @@
 domain: projectcapsule.dev
 layout:
 - go.kubebuilder.io/v4
-projectName: access-requests
-repo: github.com/peak-scale/access-requests
+projectName: /break-the-glass
+repo: github.com/peak-scale//break-the-glass
 resources:
 - api:
     crdVersion: v1
+    namespaced: true
   controller: true
   domain: projectcapsule.dev
   group: addons
-  kind: AccessRule
-  path: github.com/peak-scale/access-requests/api/v1alpha1
+  kind: BreakRequest
+  path: github.com/peak-scale//break-the-glass/api/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -22,7 +23,7 @@ resources:
   controller: true
   domain: projectcapsule.dev
   group: addons
-  kind: AccessRequest
-  path: github.com/peak-scale/access-requests/api/v1alpha1
+  kind: BreakRequestTemplate
+  path: github.com/peak-scale//break-the-glass/api/v1alpha1
   version: v1alpha1
 version: "3"

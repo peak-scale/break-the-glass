@@ -288,6 +288,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "BreakRequests")
 		os.Exit(1)
 	}
+	if err := (&controller.BreakRequestTemplateReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("Controllers").WithName("BreakRequestTemplates"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "BreakRequestTemplates")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	if metricsCertWatcher != nil {

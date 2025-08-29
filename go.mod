@@ -10,7 +10,6 @@ require (
 	github.com/onsi/gomega v1.38.0
 	github.com/prometheus/client_golang v1.23.0
 	github.com/spf13/cobra v1.9.1
-	github.com/stretchr/testify v1.10.0
 	github.com/xhit/go-str2duration/v2 v2.1.0
 	go.uber.org/mock v0.6.0
 	k8s.io/api v0.34.0

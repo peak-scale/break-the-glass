@@ -10,6 +10,8 @@ Resource Types:
 
 - [BreakRequest](#breakrequest)
 
+- [BreakRequestTemplate](#breakrequesttemplate)
+
 
 
 
@@ -20,7 +22,7 @@ Resource Types:
 
 
 
-BreakRequest is the Schema for the accessrequests API.
+BreakRequest is the Schema for the BreakRequests API.
 
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
@@ -40,12 +42,12 @@ BreakRequestSpec defines the desired state of BreakRequest.
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
 | **items** | []object | Actual Items being requested | true |
-| **duration** | string | The duration this AccessRequest should be valid for.
+| **duration** | string | The duration this BreakRequest should be valid for.
 If no duration was defined the lifecycle is bound to the request itself -
 if the request is deleted, it's the end of the duration.
 The Request can also be Terminated by another automation via calling the ExpireRequest() API-Function. | false |
-| **keepFor** | string | The duration this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
-If not set, the AccessRequest will be deleted after expiring. | false |
+| **keepFor** | string | The duration this BreakRequest will be kept in the system after it has been expired (eg. auditing purposes)
+If not set, the BreakRequest will be deleted after expiring. | false |
 | **reason** | string | A reason on why the request is needed | false |
 | **[requestor](#breakrequestspecrequestor)** | object | Requesting actor for the access request. | false |
 | **startTime** | string | Optional point in time when the access should begin. Must be in the future.
@@ -155,3 +157,36 @@ The Entity revieweing this request
 | :---- | :---- | :----------- | :-------- |
 | **name** | string | The name of the entity | false |
 | **type** | enum | The type of the entity<br/><i>Enum</i>: User, Group, System<br/> | false |
+
+## BreakRequestTemplate
+
+
+
+
+
+
+BreakRequestTemplate is the Schema for the breakrequesttemplates API.
+
+| **Name** | **Type** | **Description** | **Required** |
+| :---- | :---- | :----------- | :-------- |
+| **apiVersion** | string | addons.projectcapsule.dev/v1alpha1 | true |
+| **kind** | string | BreakRequestTemplate | true |
+| **[metadata](https://kubernetes.io/docs/reference/generated/kubernetes-api/latest/#objectmeta-v1-meta)** | object | Refer to the Kubernetes API documentation for the fields of the `metadata` field. | true |
+| **[spec](#breakrequesttemplatespec)** | object | BreakRequestTemplateSpec defines the desired state of BreakRequestTemplate. | false |
+| **status** | object | BreakRequestTemplateStatus defines the observed state of BreakRequestTemplate. | false |
+
+
+### BreakRequestTemplate.spec
+
+
+
+BreakRequestTemplateSpec defines the desired state of BreakRequestTemplate.
+
+| **Name** | **Type** | **Description** | **Required** |
+| :---- | :---- | :----------- | :-------- |
+| **items** | []object | Actual Items being created by this template | true |
+| **approvalCondition** | string | ApprovalCondition an optional CEL expression that must be successful for the request to be approved. | false |
+| **autoApprove** | boolean | AutoApprove requests created by this template will be automatically approved. | false |
+| **duration** | string | The default duration the BreakRequest referencing this template should be valid for. | false |
+| **keepFor** | string | The duration this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
+If not set, the AccessRequest will be deleted after expiring. | false |
