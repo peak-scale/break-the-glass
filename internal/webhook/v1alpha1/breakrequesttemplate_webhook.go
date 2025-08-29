@@ -40,18 +40,10 @@ func SetupBreakRequestTemplateWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
-// NOTE: The 'path' attribute must follow a specific pattern and should not be modified directly here.
-// Modifying the path for an invalid path can cause API server errors; failing to locate the webhook.
-// +kubebuilder:webhook:path=/validate-addons-projectcapsule-dev-v1alpha1-brt,mutating=false,failurePolicy=fail,sideEffects=None,groups=addons.projectcapsule.dev,resources=brts,verbs=create;update,versions=v1alpha1,name=vbrt-v1alpha1.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-breakrequesttemplates,mutating=false,failurePolicy=fail,sideEffects=None,groups=addons.projectcapsule.dev,resources=breakrequesttemplates,verbs=create;update,versions=v1alpha1,name=vbrt-v1alpha1.kb.io,admissionReviewVersions=v1
 
 // BreakRequestTemplateCustomValidator struct is responsible for validating the BreakRequestTemplate resource
 // when it is created, updated, or deleted.
-//
-// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
-// as this struct is used only for temporary operations and does not need to be deeply copied.
 type BreakRequestTemplateCustomValidator struct{}
 
 var _ webhook.CustomValidator = &BreakRequestTemplateCustomValidator{}
@@ -69,6 +61,23 @@ func (v *BreakRequestTemplateCustomValidator) ValidateCreate(
 
 	return nil, validate(brt)
 }
+
+// ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type BreakRequestTemplate.
+func (v *BreakRequestTemplateCustomValidator) ValidateUpdate(
+	_ context.Context,
+	_, newObj runtime.Object,
+) (admission.Warnings, error) {
+	brt, ok := newObj.(*addonsv1alpha1.BreakRequestTemplate)
+	if !ok {
+		return nil, fmt.Errorf(
+			"expected a BreakRequestTemplate object for the newObj but got %T",
+			newObj,
+		)
+	}
+	brtlog.Info("Validation for BreakRequestTemplate upon update", "name", brt.GetName())
+	return nil, validate(brt)
+}
+
 func validate(brt *addonsv1alpha1.BreakRequestTemplate) error {
 	if !brt.Spec.AutoApprove {
 		if brt.Spec.ApprovalCondition != "" {
@@ -88,26 +97,10 @@ func validate(brt *addonsv1alpha1.BreakRequestTemplate) error {
 	return nil
 }
 
-// ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type BreakRequestTemplate.
-func (v *BreakRequestTemplateCustomValidator) ValidateUpdate(
-	_ context.Context,
-	_, newObj runtime.Object,
-) (admission.Warnings, error) {
-	brt, ok := newObj.(*addonsv1alpha1.BreakRequestTemplate)
-	if !ok {
-		return nil, fmt.Errorf(
-			"expected a BreakRequestTemplate object for the newObj but got %T",
-			newObj,
-		)
-	}
-	brtlog.Info("Validation for BreakRequestTemplate upon update", "name", brt.GetName())
-	return nil, validate(brt)
-}
-
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type BreakRequestTemplate.
 func (v *BreakRequestTemplateCustomValidator) ValidateDelete(
-	ctx context.Context,
-	obj runtime.Object,
+	_ context.Context,
+	_ runtime.Object,
 ) (admission.Warnings, error) {
 	return nil, nil
 }

@@ -42,6 +42,7 @@ BreakRequestSpec defines the desired state of BreakRequest.
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
 | **items** | []object | Actual Items being requested | true |
+| **templateName** | string | TemplateName the name of the template to use for this request | true |
 | **duration** | string | The duration this BreakRequest should be valid for.
 If no duration was defined the lifecycle is bound to the request itself -
 if the request is deleted, it's the end of the duration.

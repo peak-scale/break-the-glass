@@ -103,8 +103,13 @@ spec:
                   If omitted, this is set to the current time. The Request must already be approved before the start time.
                 format: date-time
                 type: string
+              templateName:
+                description: TemplateName the name of the template to use for this
+                  request
+                type: string
             required:
             - items
+            - templateName
             type: object
           status:
             description: BreakRequestStatus defines the observed state of BreakRequest.

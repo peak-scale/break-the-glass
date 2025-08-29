@@ -23,8 +23,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestApi(t *testing.T) {
+func TestApiV1Alpha1(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecs(t, "v1alpha1 Suite")
+	RunSpecs(t, "API v1alpha1 Suite")
 }

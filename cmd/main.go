@@ -289,6 +289,10 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "BreakRequestTemplate")
 			os.Exit(1)
 		}
+		if err := webhookv1alpha1.SetupBreakRequestWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "BreakRequest")
+			os.Exit(1)
+		}
 	}
 	// +kubebuilder:scaffold:builder
 
