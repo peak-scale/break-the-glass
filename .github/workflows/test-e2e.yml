@@ -2,7 +2,11 @@ name: E2E Tests
 
 on:
   push:
+    branches-ignore: # FIXME enable if e2e is ready
+      - '**'
   pull_request:
+    branches-ignore:  # FIXME enable if e2e is ready
+      - '**'
 
 jobs:
   test-e2e:

@@ -17,9 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/peak-scale/break-the-glass/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	capsulev1beta2 "github.com/projectcapsule/capsule/api/v1beta2"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // BreakRequestSpec defines the desired state of BreakRequest.
@@ -28,9 +28,9 @@ type BreakRequestSpec struct {
 	Requestor AccessEntity `json:"requestor,omitempty"`
 	// Actual Items being requested
 	// +kubebuilder:validation:Required
-	Items []capsulev1beta2.RawExtension `json:"items,omitempty"`
+	Items []runtime.RawExtension `json:"items,omitempty"`
 	// A reason on why the request is needed
-	Reason string `json:"reaso,omitempty"`
+	Reason string `json:"reason,omitempty"`
 	// The duration this AccessRequest should be valid for.
 	// If no duration was defined the lifecycle is bound to the request itself -
 	// if the request is deleted, it's the end of the duration.
@@ -38,7 +38,7 @@ type BreakRequestSpec struct {
 	Duration metav1.Duration `json:"duration,omitempty"`
 	// The duration this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
 	// If not set, the AccessRequest will be deleted after expiring.
-	KeepFor metav1.Duration `json:"keepFor,omitempty"`
+	KeepFor api.ExtendedDuration `json:"keepFor,omitempty"`
 	// Optional point in time when the access should begin. Must be in the future.
 	// If omitted, this is set to the current time. The Request must already be approved before the start time.
 	// +optional
@@ -79,10 +79,10 @@ type BreakRequestStatusActive struct {
 
 // These are the relevant properties which are subject to review and then persistet
 type BreakRequestStatusReviewProperties struct {
-	KeepFor   metav1.Duration               `json:"keepFor,omitempty"`
-	Duration  metav1.Duration               `json:"duration,omitempty"`
-	StartTime metav1.Time                   `json:"startTime,omitempty"`
-	Items     []capsulev1beta2.RawExtension `json:"items,omitempty"`
+	KeepFor   api.ExtendedDuration   `json:"keepFor,omitempty"`
+	Duration  metav1.Duration        `json:"duration,omitempty"`
+	StartTime metav1.Time            `json:"startTime,omitempty"`
+	Items     []runtime.RawExtension `json:"items,omitempty"`
 }
 
 type BreakRequestStatusReview struct {

@@ -39,14 +39,14 @@ BreakRequestSpec defines the desired state of BreakRequest.
 
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
-| **items** | []RawExtension | Actual Items being requested | true |
+| **items** | []object | Actual Items being requested | true |
 | **duration** | string | The duration this AccessRequest should be valid for.
 If no duration was defined the lifecycle is bound to the request itself -
 if the request is deleted, it's the end of the duration.
 The Request can also be Terminated by another automation via calling the ExpireRequest() API-Function. | false |
 | **keepFor** | string | The duration this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
 If not set, the AccessRequest will be deleted after expiring. | false |
-| **reaso** | string | A reason on why the request is needed | false |
+| **reason** | string | A reason on why the request is needed | false |
 | **[requestor](#breakrequestspecrequestor)** | object | Requesting actor for the access request. | false |
 | **startTime** | string | Optional point in time when the access should begin. Must be in the future.
 If omitted, this is set to the current time. The Request must already be approved before the start time.<br/><i>Format</i>: date-time<br/> | false |
@@ -103,7 +103,7 @@ The Approved properties are set when the request is approved.
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
 | **duration** | string |  | false |
-| **items** | []RawExtension |  | false |
+| **items** | []object |  | false |
 | **keepFor** | string |  | false |
 | **startTime** | string | <br/><i>Format</i>: date-time<br/> | false |
 

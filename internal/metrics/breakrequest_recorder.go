@@ -42,11 +42,7 @@ func (r *BreakRequestsRecorder) Collectors() []prometheus.Collector {
 }
 
 // RecordCondition records the condition as given for the ref.
-func (r *BreakRequestsRecorder) RecordRequestCondition(request *addonsv1alpha1.BreakRequest) {
-	return
-}
+func (r *BreakRequestsRecorder) RecordRequestCondition(_ *addonsv1alpha1.BreakRequest) {}
 
 // DeleteCondition deletes the condition metrics for the ref.
-func (r *BreakRequestsRecorder) DeleteRequestMetrics(request *addonsv1alpha1.BreakRequest) {
-	return
-}
+func (r *BreakRequestsRecorder) DeleteRequestMetrics(_ *addonsv1alpha1.BreakRequest) {}

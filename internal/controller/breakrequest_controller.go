@@ -59,7 +59,10 @@ func (r *BreakRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.4/pkg/reconcile
-func (r *BreakRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *BreakRequestReconciler) Reconcile(
+	ctx context.Context,
+	req ctrl.Request,
+) (ctrl.Result, error) {
 	log := r.Log.WithValues("Request.Name", req.Name).WithValues("Request.Namespace", req.Namespace)
 
 	instance := &addonsv1alpha1.BreakRequest{}
@@ -67,7 +70,8 @@ func (r *BreakRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if apierrors.IsNotFound(err) {
 
 			r.Metrics.DeleteRequestMetrics(instance)
-			log.V(5).Info("Request object not found, could have been deleted after reconcile request")
+			log.V(5).
+				Info("Request object not found, could have been deleted after reconcile request")
 
 			return reconcile.Result{}, nil
 		}
@@ -101,6 +105,10 @@ func (r *BreakRequestReconciler) reconcile(
 		cerr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 			current := &addonsv1alpha1.BreakRequest{}
 			if err := r.Get(ctx, client.ObjectKeyFromObject(request), current); err != nil {
+				if apierrors.IsNotFound(err) {
+					// if the request is deleted, we cannot find it anymore
+					return nil
+				}
 				return fmt.Errorf("failed to refetch instance before update: %w", err)
 			}
 
@@ -127,17 +135,21 @@ func (r *BreakRequestReconciler) reconcile(
 	case addonsv1alpha1.RequestPhaseApproved:
 		log.V(5).Info("BreakRequest is approved, checking if duration can be started")
 
-		if request.Status.Approved.StartTime.IsZero() || time.Until(request.Status.Approved.StartTime.Time) <= 0 {
+		if request.Status.Approved.StartTime.IsZero() ||
+			time.Until(request.Status.Approved.StartTime.Time) <= 0 {
 			log.V(5).Info("BreakRequest is approved, activating request")
 
 			// Transition to Active Phase
-			if err := r.transitionRequestActivation(ctx, log, request); err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to activate BreakRequest %s: %w", request.Name, err)
+			if err := r.transitionRequestActivation(ctx, request); err != nil {
+				return ctrl.Result{}, fmt.Errorf(
+					"failed to activate BreakRequest %s: %w",
+					request.Name,
+					err,
+				)
 			}
 
 			log.V(5).Info("BreakRequest activated successfully")
 			return ctrl.Result{}, nil
-
 		}
 
 	case addonsv1alpha1.RequestPhaseDenied:
@@ -147,7 +159,7 @@ func (r *BreakRequestReconciler) reconcile(
 
 		log.V(5).Info("BreakRequest is denied, handling denied state")
 
-		//r.Recorder.Event(request, corev1.EventTypeWarning, "Denied", fmt.Sprintf("Request denied by %s %s", entity.Type, entity.Name))
+		// r.Recorder.Event(request, corev1.EventTypeWarning, "Denied", fmt.Sprintf("Request denied by %s %s", entity.Type, entity.Name))
 
 	case addonsv1alpha1.RequestPhaseActive:
 		if err := r.addFinalizer(ctx, log, request); err != nil {
@@ -158,10 +170,16 @@ func (r *BreakRequestReconciler) reconcile(
 
 		if request.Status.Active != nil {
 			if !request.Status.Active.ActiveUntil.IsZero() {
-				log.V(5).Info("Requeing when expiration is due")
+				ts := metav1.Now()
+				if ts.After(request.Status.Active.ActiveUntil.Time) {
+					r.Recorder.Event(request, corev1.EventTypeNormal, "Expired", "Request Expired")
+					return ctrl.Result{}, request.ExpireRequest(nil)
+				}
+
+				log.V(5).Info("Requeueing when expiration is due")
 
 				return ctrl.Result{
-					RequeueAfter: request.Status.Active.ActiveUntil.Sub(metav1.Now().Time),
+					RequeueAfter: request.Status.Active.ActiveUntil.Sub(ts.Time),
 				}, nil
 			}
 		}
@@ -170,7 +188,8 @@ func (r *BreakRequestReconciler) reconcile(
 
 	// When the BreakRequest has expired
 	case addonsv1alpha1.RequestPhaseExpired:
-		if request.Status.KeepUntil.Time.IsZero() || time.Until(request.Status.KeepUntil.Time) <= 0 {
+		if request.Status.KeepUntil.Time.IsZero() ||
+			time.Until(request.Status.KeepUntil.Time) <= 0 {
 			log.V(5).Info("AccessRequest is expired, deleting request")
 			return ctrl.Result{}, r.Delete(ctx, request)
 		}
@@ -180,19 +199,26 @@ func (r *BreakRequestReconciler) reconcile(
 			request.Status.KeepUntil.Time,
 		)
 
-		return ctrl.Result{
-			RequeueAfter: time.Until(request.Status.KeepUntil.Time),
-		}, nil
+		if err := r.deleteItems(ctx, request); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		return ctrl.Result{RequeueAfter: time.Until(request.Status.KeepUntil.Time)}, nil
 
 	// The case when the AccessRequest is newly created
 	default:
-		log.V(5).Info("AccessRequestis newly created, moving to pending phase")
+		log.V(5).Info("AccessRequest is newly created, moving to pending phase")
 
 		if err := request.SetRequested(); err != nil {
 			return ctrl.Result{}, err
 		}
 
-		r.Recorder.Event(request, corev1.EventTypeNormal, string(request.Status.Phase), "Pending Review")
+		r.Recorder.Event(
+			request,
+			corev1.EventTypeNormal,
+			string(request.Status.Phase),
+			"Pending Review",
+		)
 	}
 
 	return ctrl.Result{}, nil
@@ -223,31 +249,29 @@ func (r *BreakRequestReconciler) addFinalizer(
 		return fmt.Errorf("failed to add finalizer to BreakRequest %s: %w", request.Name, err)
 	}
 
-	return r.Client.Get(ctx, client.ObjectKeyFromObject(request), request)
+	return r.Get(ctx, client.ObjectKeyFromObject(request), request)
 }
 
 // When a request is approved, it can be activated immediately or after a certain duration.
 func (r *BreakRequestReconciler) transitionRequestActivation(
 	ctx context.Context,
-	log logr.Logger,
 	request *addonsv1alpha1.BreakRequest,
 ) error {
-	if err := request.ActiveRequest(ctx, r.Client, nil); err != nil {
+	if err := request.ActiveRequest(nil); err != nil {
 		return err
 	}
 
 	// Reflect Binding
-	if err := r.reconcileItems(ctx, log, request); err != nil {
-		return fmt.Errorf("failed to create RBAC for AccessRequest %s: %w", request.Name, err)
+	if err := r.reconcileItems(ctx, request); err != nil {
+		return fmt.Errorf("failed to create AccessRequest items %s: %w", request.Name, err)
 	}
 
 	return nil
 }
 
-// Creates the necessary RBAC resources for the AccessRequest
+// Creates the necessary items resources for the AccessRequest
 func (r *BreakRequestReconciler) reconcileItems(
 	ctx context.Context,
-	log logr.Logger,
 	request *addonsv1alpha1.BreakRequest,
 ) (err error) {
 
@@ -255,19 +279,52 @@ func (r *BreakRequestReconciler) reconcileItems(
 
 	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())
 
-	for _, item := range request.Spec.Items {
-		obj := unstructured.Unstructured{}
+	// reset the approved items, only the true approved items should be kept, including the modification done from the operator
+	request.Status.Approved.Items = nil
 
-		if _, _, decodeErr := codecFactory.UniversalDeserializer().Decode(item.Raw, nil, &obj); decodeErr != nil {
-			syncErr = errors.Join(syncErr, decodeErr)
+	for _, item := range request.Spec.Items {
+
+		var obj client.Object
+
+		// Safely get a client.Object from item.Object, or fall back to decoding Raw
+		if item.Object != nil {
+			var ok bool
+			obj, ok = item.Object.(client.Object)
+			if !ok {
+				syncErr = errors.Join(
+					syncErr,
+					fmt.Errorf(
+						"item %q is not a client.Object",
+						item.Object.GetObjectKind().GroupVersionKind().String(),
+					),
+				)
+				continue
+			}
+		} else {
+			obj = &unstructured.Unstructured{}
+
+			if _, _, decodeErr := codecFactory.UniversalDeserializer().Decode(item.Raw, nil, obj); decodeErr != nil {
+				syncErr = errors.Join(syncErr, decodeErr)
+
+				continue
+			}
+		}
+
+		obj.SetNamespace(request.Namespace)
+		if orerr := controllerutil.SetOwnerReference(request, obj, r.Scheme); orerr != nil {
+			syncErr = errors.Join(syncErr, orerr)
 
 			continue
 		}
 
-		obj.SetNamespace(request.Namespace)
+		// append the item to the approved items (use deep copy to avoid using the cluster object)
+		request.Status.Approved.Items = append(
+			request.Status.Approved.Items,
+			runtime.RawExtension{Object: obj.DeepCopyObject()},
+		)
 
 		// Apply the object to the cluster
-		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, &obj, func() error {
+		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, obj, func() error {
 
 			labels := obj.GetLabels()
 			if labels == nil {
@@ -279,6 +336,39 @@ func (r *BreakRequestReconciler) reconcileItems(
 
 			return nil
 		})
+		if err != nil {
+			syncErr = errors.Join(syncErr, err)
+		}
+	}
+
+	return syncErr
+}
+
+// deletes items of the AccessRequest
+func (r *BreakRequestReconciler) deleteItems(
+	ctx context.Context,
+	request *addonsv1alpha1.BreakRequest,
+) (err error) {
+
+	var syncErr error
+
+	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())
+
+	for _, item := range request.Status.Approved.Items {
+		obj := unstructured.Unstructured{}
+
+		if _, _, decodeErr := codecFactory.UniversalDeserializer().Decode(item.Raw, nil, &obj); decodeErr != nil {
+			syncErr = errors.Join(syncErr, decodeErr)
+
+			continue
+		}
+
+		if derr := r.Delete(ctx, &obj); derr != nil {
+			if !apierrors.IsNotFound(derr) {
+				syncErr = errors.Join(syncErr, derr)
+				continue
+			}
+		}
 	}
 
 	return syncErr

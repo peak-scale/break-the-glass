@@ -102,7 +102,7 @@ The Plugin is located in the [`plugin/`](../plugin/) directory. To make use of t
 3. Test it's working
 
    ```shell
-   kubectl accessdev --help
+   kubectl break-glass --help
    ```
 
 [Read More](https://kubernetes.io/docs/tasks/extend-kubectl/kubectl-plugins/#writing-kubectl-plugins)
