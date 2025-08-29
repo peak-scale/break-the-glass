@@ -80,7 +80,7 @@ golint-fix: golangci-lint
 	$(GOLANGCI_LINT) run -c .golangci.yml --fix
 
 manifests: controller-gen 
-	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true paths="./..." output:crd:artifacts:config=charts/break-the-glass/crds
+	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true webhook paths="./..." output:crd:artifacts:config=charts/break-the-glass/crds
 	make apidocs
 
 # Generate code

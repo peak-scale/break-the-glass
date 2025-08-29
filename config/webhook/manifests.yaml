@@ -1,0 +1,26 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-addons-projectcapsule-dev-v1alpha1-brt
+  failurePolicy: Fail
+  name: vbrt-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - addons.projectcapsule.dev
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - brts
+  sideEffects: None

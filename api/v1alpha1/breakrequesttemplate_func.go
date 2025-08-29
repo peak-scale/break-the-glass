@@ -31,18 +31,7 @@ func (brt *BreakRequestTemplate) IsApproved(br *BreakRequest) (bool, error) {
 		return true, nil
 	}
 
-	env, err := cel.NewEnv(
-		cel.Variable("request", cel.DynType),
-	)
-	if err != nil {
-		return false, err
-	}
-
-	ast, iss := env.Compile(brt.Spec.ApprovalCondition)
-	if iss != nil && iss.Err() != nil {
-		return false, iss.Err()
-	}
-	prg, err := env.Program(ast)
+	prg, err := brt.PrepareCondition()
 	if err != nil {
 		return false, err
 	}
@@ -65,4 +54,19 @@ func (brt *BreakRequestTemplate) IsApproved(br *BreakRequest) (bool, error) {
 		)
 	}
 	return boolResult, err
+}
+
+func (brt *BreakRequestTemplate) PrepareCondition() (cel.Program, error) {
+	env, err := cel.NewEnv(
+		cel.Variable("request", cel.DynType),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	ast, iss := env.Compile(brt.Spec.ApprovalCondition)
+	if iss != nil && iss.Err() != nil {
+		return nil, iss.Err()
+	}
+	return env.Program(ast)
 }
