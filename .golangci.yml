@@ -52,6 +52,7 @@ linters:
 formatters:
   enable:
     - gofmt
+    - gofumpt
     - goimports
     - golines
   exclusions:

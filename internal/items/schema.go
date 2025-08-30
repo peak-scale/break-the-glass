@@ -20,7 +20,6 @@ func ValidateItems(i TemplateItems) error {
 }
 
 func Validate(ps ParamSchema, params Params) error {
-
 	schema, err := ValidateSchema(ps)
 	if err != nil || schema == nil {
 		return err

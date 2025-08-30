@@ -194,7 +194,6 @@ func (br *BreakRequest) transitionRequestPhase(
 	now metav1.Time,
 	entity *AccessEntity,
 ) error {
-
 	// Prevent duplicate condition entries of the same type
 	for _, cond := range br.Status.Conditions {
 		if RequestPhase(cond.Type) == newPhase {

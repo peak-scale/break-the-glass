@@ -22,9 +22,7 @@ var rootCmd = &cobra.Command{
 	Short: "Manage BreakRequests",
 }
 
-var (
-	scheme = runtime.NewScheme()
-)
+var scheme = runtime.NewScheme()
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))

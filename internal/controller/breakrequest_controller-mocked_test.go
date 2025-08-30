@@ -38,7 +38,6 @@ import (
 const resourceName = "test-resource"
 
 var _ = Describe("AccessRequest Controller", func() {
-
 	var (
 		ctx      context.Context
 		mockCtrl *gm.Controller

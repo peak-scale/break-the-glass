@@ -28,7 +28,6 @@ const (
 
 func (t AccessEntityType) String() string {
 	return string(t)
-
 }
 
 type AccessEntity struct {

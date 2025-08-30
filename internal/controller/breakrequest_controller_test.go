@@ -45,9 +45,7 @@ var _ = Describe("BreakRequest Controller", func() {
 			Namespace: "default",
 		}
 		BreakRequest := &addonsv1alpha1.BreakRequest{}
-		var (
-			controllerReconciler *BreakRequestReconciler
-		)
+		var controllerReconciler *BreakRequestReconciler
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind BreakRequest")

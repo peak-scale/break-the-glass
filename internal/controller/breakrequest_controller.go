@@ -99,7 +99,6 @@ func (r *BreakRequestReconciler) reconcile(
 	log logr.Logger,
 	request *addonsv1alpha1.BreakRequest,
 ) (res ctrl.Result, err error) {
-
 	defer func() {
 		// Always Post Status
 		cerr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
@@ -274,7 +273,6 @@ func (r *BreakRequestReconciler) reconcileItems(
 	ctx context.Context,
 	request *addonsv1alpha1.BreakRequest,
 ) (err error) {
-
 	var syncErr error
 
 	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())
@@ -325,7 +323,6 @@ func (r *BreakRequestReconciler) reconcileItems(
 
 		// Apply the object to the cluster
 		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, obj, func() error {
-
 			labels := obj.GetLabels()
 			if labels == nil {
 				labels = map[string]string{}
@@ -349,7 +346,6 @@ func (r *BreakRequestReconciler) deleteItems(
 	ctx context.Context,
 	request *addonsv1alpha1.BreakRequest,
 ) (err error) {
-
 	var syncErr error
 
 	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())

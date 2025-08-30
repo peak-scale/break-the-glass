@@ -8,7 +8,6 @@ import (
 )
 
 var _ = Describe("Params DeepCopyInto", func() {
-
 	type testCase struct {
 		name       string
 		input      Params

@@ -30,7 +30,6 @@ import (
 const kubeBuilderType = "+kubebuilder:validation:Type="
 
 var _ = Describe("ExtendedDuration", func() {
-
 	Context("UnmarshalJSON", func() {
 		DescribeTable("should unmarshal JSON strings correctly",
 			func(input string, expectErr bool, expected ExtendedDuration) {
@@ -112,7 +111,6 @@ var _ = Describe("ExtendedDuration", func() {
 			schemaType := findKubeBuilderComment(file)
 			Expect(schemaType).To(HaveLen(1))
 			Expect(schemaType[0]).To(Equal(d.OpenAPISchemaType()[0]))
-
 		})
 	})
 

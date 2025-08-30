@@ -24,7 +24,6 @@ import (
 
 // BreakRequestTemplateSpec defines the desired state of BreakRequestTemplate.
 type BreakRequestTemplateSpec struct {
-
 	// Actual Items being created by this template
 	// +kubebuilder:validation:Required
 	Items items.TemplateItems `json:"items,omitempty"`

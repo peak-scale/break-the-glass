@@ -24,7 +24,6 @@ import (
 
 // BreakRequestSpec defines the desired state of BreakRequest.
 type BreakRequestSpec struct {
-
 	// TemplateName the name of the template to use for this request
 	// +kubebuilder:validation:Required
 	TemplateName string `json:"templateName"`

@@ -92,14 +92,6 @@ apidocs: TARGET_DIR      := $(shell mktemp -d)
 apidocs: apidocs-gen generate
 	$(APIDOCS_GEN) crdoc --resources charts/break-the-glass/crds --output docs/reference.md --template ./hack/templates/crds.tmpl
 
-.PHONY: fmt
-fmt: ## Run go fmt against code.
-	go fmt ./...
-
-.PHONY: vet
-vet: ## Run go vet against code.
-	go vet ./...
-
 .PHONY: test
 test: generate manifests mocks setup-envtest
 	@GO111MODULE=on go test -v $(shell go list ./... | grep -v "e2e") -coverprofile coverage.out
