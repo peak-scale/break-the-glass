@@ -10,10 +10,13 @@ import (
 	"k8s.io/kube-openapi/pkg/validation/validate"
 )
 
-func ValidateItems(i TemplateItems) error {
-	for name, item := range i {
-		if _, err := ValidateSchema(item.ParamSchema); err != nil {
+func ValidateItems(tis TemplateItems) error {
+	for name, ti := range tis {
+		if _, err := ValidateSchema(ti.ParamSchema); err != nil {
 			return fmt.Errorf("paramSchema for item %q is invalid: %w", name, err)
+		}
+		if _, err := ValidateTemplate(ti.Item); err != nil {
+			return fmt.Errorf("template for item %q is invalid: %w", name, err)
 		}
 	}
 	return nil
@@ -67,9 +70,7 @@ func ValidateSchema(ps ParamSchema) (*spec.Schema, error) {
 }
 
 func metaValidateJSONSchema(schemaBytes []byte) error {
-	// Choose the meta-schema URL to match your dialect:
 	// For OAS 3.1: https://json-schema.org/draft/2020-12/schema
-	// For OAS 3.0-ish (draft-04): https://json-schema.org/draft-04/schema
 	meta := "https://json-schema.org/draft/2020-12/schema"
 
 	c := jsonschema.NewCompiler()
