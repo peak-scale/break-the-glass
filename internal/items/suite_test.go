@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package items
 
 import (
 	"testing"
@@ -23,8 +23,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestApiV1Alpha1(t *testing.T) {
+func TestOpenAPI(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecs(t, "API v1alpha1 Suite")
+	RunSpecs(t, "OpenAPI Suite")
 }

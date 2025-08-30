@@ -21,10 +21,12 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/peak-scale/break-the-glass/internal/items"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,13 +56,15 @@ var _ = Describe("BreakRequestTemplate Controller", func() {
 						Namespace: "default",
 					},
 					Spec: addonsv1alpha1.BreakRequestTemplateSpec{
-						Items: []runtime.RawExtension{
-							{Object: &v1.ConfigMap{
-								ObjectMeta: metav1.ObjectMeta{
-									Name:      "test-configmap",
-									Namespace: "default",
-								},
-							}},
+						Items: items.TemplateItems{
+							"cm": items.TemplateItem{
+								Item: us(&v1.ConfigMap{
+									ObjectMeta: metav1.ObjectMeta{
+										Name:      "test-configmap",
+										Namespace: "default",
+									},
+								}),
+							},
 						},
 					},
 				}
@@ -93,3 +97,8 @@ var _ = Describe("BreakRequestTemplate Controller", func() {
 		})
 	})
 })
+
+func us(obj client.Object) items.Item {
+	us, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	return items.Item{Object: us}
+}

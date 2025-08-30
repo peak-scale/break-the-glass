@@ -2,7 +2,13 @@ name: Tests
 
 on:
   push:
+    branches:
+      - main
+      - init
   pull_request:
+    branches:
+      - main
+      - init
 
 jobs:
   test:

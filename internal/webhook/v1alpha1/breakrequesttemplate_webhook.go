@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/peak-scale/break-the-glass/internal/conditions"
+	"github.com/peak-scale/break-the-glass/internal/items"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -83,18 +85,17 @@ func validate(brt *addonsv1alpha1.BreakRequestTemplate) error {
 		if brt.Spec.ApprovalCondition != "" {
 			return fmt.Errorf("approvalCondition should not be set when autoApprove is false")
 		}
-		return nil
+	} else {
+		if brt.Spec.ApprovalCondition == "" {
+			return nil
+		}
+
+		if _, err := conditions.PrepareCondition(brt); err != nil {
+			return fmt.Errorf("approvalCondition is invalid: %w", err)
+		}
 	}
 
-	if brt.Spec.ApprovalCondition == "" {
-		return nil
-	}
-
-	if _, err := brt.PrepareCondition(); err != nil {
-		return fmt.Errorf("approvalCondition is invalid: %w", err)
-	}
-
-	return nil
+	return items.ValidateItems(brt.Spec.Items)
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type BreakRequestTemplate.

@@ -1,29 +1,14 @@
-/*
-Copyright 2025.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-package v1alpha1
+package conditions
 
 import (
 	"fmt"
 
 	"github.com/google/cel-go/cel"
+	"github.com/peak-scale/break-the-glass/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func (brt *BreakRequestTemplate) IsApproved(br *BreakRequest) (bool, error) {
+func IsApproved(brt *v1alpha1.BreakRequestTemplate, br *v1alpha1.BreakRequest) (bool, error) {
 	if !brt.Spec.AutoApprove {
 		return false, nil
 	}
@@ -31,7 +16,7 @@ func (brt *BreakRequestTemplate) IsApproved(br *BreakRequest) (bool, error) {
 		return true, nil
 	}
 
-	prg, err := brt.PrepareCondition()
+	prg, err := PrepareCondition(brt)
 	if err != nil {
 		return false, err
 	}
@@ -56,7 +41,7 @@ func (brt *BreakRequestTemplate) IsApproved(br *BreakRequest) (bool, error) {
 	return boolResult, err
 }
 
-func (brt *BreakRequestTemplate) PrepareCondition() (cel.Program, error) {
+func PrepareCondition(brt *v1alpha1.BreakRequestTemplate) (cel.Program, error) {
 	env, err := cel.NewEnv(
 		cel.Variable("request", cel.DynType),
 	)

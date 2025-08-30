@@ -98,7 +98,12 @@ var _ = Describe("ExtendedDuration", func() {
 		})
 		It("should verify the schema type matches the kubebuilder comment", func() {
 			fset := token.NewFileSet()
-			file, err := parser.ParseFile(fset, "extended-duration.go", nil, parser.ParseComments)
+			file, err := parser.ParseFile(
+				fset,
+				"extended-duration_types.go",
+				nil,
+				parser.ParseComments,
+			)
 			if err != nil {
 				Expect(err).NotTo(HaveOccurred())
 			}

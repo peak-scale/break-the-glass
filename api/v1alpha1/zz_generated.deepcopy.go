@@ -21,6 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/peak-scale/break-the-glass/internal/items"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -307,9 +308,9 @@ func (in *BreakRequestTemplateSpec) DeepCopyInto(out *BreakRequestTemplateSpec) 
 	*out = *in
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]runtime.RawExtension, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
+		*out = make(items.TemplateItems, len(*in))
+		for key, val := range *in {
+			(*out)[key] = *val.DeepCopy()
 		}
 	}
 	out.DefaultDuration = in.DefaultDuration

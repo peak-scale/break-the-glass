@@ -18,8 +18,8 @@ package v1alpha1
 
 import (
 	"github.com/peak-scale/break-the-glass/api"
+	"github.com/peak-scale/break-the-glass/internal/items"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // BreakRequestTemplateSpec defines the desired state of BreakRequestTemplate.
@@ -27,8 +27,7 @@ type BreakRequestTemplateSpec struct {
 
 	// Actual Items being created by this template
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinItems=1
-	Items []runtime.RawExtension `json:"items,omitempty"`
+	Items items.TemplateItems `json:"items,omitempty"`
 
 	// The default duration the BreakRequest referencing this template should be valid for.
 	DefaultDuration metav1.Duration `json:"duration,omitempty"`
