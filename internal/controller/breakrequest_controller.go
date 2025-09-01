@@ -22,12 +22,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/peak-scale/break-the-glass/internal/items"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -275,40 +274,23 @@ func (r *BreakRequestReconciler) reconcileItems(
 ) (err error) {
 	var syncErr error
 
-	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())
+	brt := &addonsv1alpha1.BreakRequestTemplate{}
+	if err := r.Get(ctx, client.ObjectKey{Name: request.Spec.TemplateName}, brt); err != nil {
+		return err
+	}
 
 	// reset the approved items, only the true approved items should be kept, including the modification done from the operator
-	request.Status.Approved.Items = nil
+	request.Status.Approved.Items = make(items.Items)
 
-	for _, item := range request.Spec.Items {
+	rendered, err := brt.RenderItemsItems(request)
+	if err != nil {
+		return err
+	}
 
-		var obj client.Object
-
-		// Safely get a client.Object from item.Object, or fall back to decoding Raw
-		if item.Object != nil {
-			var ok bool
-			obj, ok = item.Object.(client.Object)
-			if !ok {
-				syncErr = errors.Join(
-					syncErr,
-					fmt.Errorf(
-						"item %q is not a client.Object",
-						item.Object.GetObjectKind().GroupVersionKind().String(),
-					),
-				)
-				continue
-			}
-		} else {
-			obj = &unstructured.Unstructured{}
-
-			if _, _, decodeErr := codecFactory.UniversalDeserializer().Decode(item.Raw, nil, obj); decodeErr != nil {
-				syncErr = errors.Join(syncErr, decodeErr)
-
-				continue
-			}
-		}
+	for name, obj := range rendered {
 
 		obj.SetNamespace(request.Namespace)
+
 		if orerr := controllerutil.SetOwnerReference(request, obj, r.Scheme); orerr != nil {
 			syncErr = errors.Join(syncErr, orerr)
 
@@ -316,10 +298,7 @@ func (r *BreakRequestReconciler) reconcileItems(
 		}
 
 		// append the item to the approved items (use deep copy to avoid using the cluster object)
-		request.Status.Approved.Items = append(
-			request.Status.Approved.Items,
-			runtime.RawExtension{Object: obj.DeepCopyObject()},
-		)
+		request.Status.Approved.Items[name] = obj.DeepCopy()
 
 		// Apply the object to the cluster
 		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, obj, func() error {
@@ -348,18 +327,8 @@ func (r *BreakRequestReconciler) deleteItems(
 ) (err error) {
 	var syncErr error
 
-	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())
-
 	for _, item := range request.Status.Approved.Items {
-		obj := unstructured.Unstructured{}
-
-		if _, _, decodeErr := codecFactory.UniversalDeserializer().Decode(item.Raw, nil, &obj); decodeErr != nil {
-			syncErr = errors.Join(syncErr, decodeErr)
-
-			continue
-		}
-
-		if derr := r.Delete(ctx, &obj); derr != nil {
+		if derr := r.Delete(ctx, item); derr != nil {
 			if !apierrors.IsNotFound(derr) {
 				syncErr = errors.Join(syncErr, derr)
 				continue

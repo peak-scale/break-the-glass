@@ -28,9 +28,10 @@ type BreakRequestTemplateSpec struct {
 	// +kubebuilder:validation:Required
 	Items items.TemplateItems `json:"items,omitempty"`
 
-	// The default duration the BreakRequest referencing this template should be valid for.
+	// The default duration of the BreakRequest referencing this template should be valid for.
 	DefaultDuration metav1.Duration `json:"duration,omitempty"`
-	// The duration this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
+
+	// The duration of this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
 	// If not set, the AccessRequest will be deleted after expiring.
 	KeepFor api.ExtendedDuration `json:"keepFor,omitempty"`
 
@@ -48,7 +49,6 @@ type BreakRequestTemplateStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 // +kubebuilder:printcolumn:name="AutoApprove",type=boolean,JSONPath=`.spec.autoApprove`
 // +kubebuilder:printcolumn:name="Condition",type=string,JSONPath=`.spec.approvalCondition`,priority=10

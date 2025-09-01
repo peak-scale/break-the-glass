@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"text/template"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 )
 
-func RenderTemplate(i Item, params Params) (*Item, error) {
+func RenderTemplate(i Item, params Params) (*unstructured.Unstructured, error) {
 	tpl, err := ValidateTemplate(i)
 	if err != nil {
 		return nil, err
@@ -16,7 +17,7 @@ func RenderTemplate(i Item, params Params) (*Item, error) {
 	if err := tpl.Execute(&res, params.Object); err != nil {
 		return nil, err
 	}
-	out := &Item{}
+	out := &unstructured.Unstructured{}
 	err = yaml.Unmarshal(res.Bytes(), &out.Object)
 	return out, err
 }

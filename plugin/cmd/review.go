@@ -51,6 +51,10 @@ var reviewCmd = &cobra.Command{
 		if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name, Namespace: namespace}, br); err != nil {
 			return err
 		}
+		brt := &addonsv1alpha1.BreakRequestTemplate{}
+		if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name}, brt); err != nil {
+			return err
+		}
 
 		if br.Status.Phase != addonsv1alpha1.RequestPhaseRequested {
 			return fmt.Errorf(
@@ -60,7 +64,7 @@ var reviewCmd = &cobra.Command{
 			)
 		}
 
-		props, err := br.GetReviewProperties()
+		props, err := br.GetReviewProperties(brt)
 		if err != nil {
 			return err
 		}

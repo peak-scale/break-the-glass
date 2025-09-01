@@ -41,14 +41,12 @@ BreakRequestSpec defines the desired state of BreakRequest.
 
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
-| **items** | []object | Actual Items being requested | true |
 | **templateName** | string | TemplateName the name of the template to use for this request | true |
 | **duration** | string | The duration this BreakRequest should be valid for.
 If no duration was defined the lifecycle is bound to the request itself -
 if the request is deleted, it's the end of the duration.
 The Request can also be Terminated by another automation via calling the ExpireRequest() API-Function. | false |
-| **keepFor** | string | The duration this BreakRequest will be kept in the system after it has been expired (eg. auditing purposes)
-If not set, the BreakRequest will be deleted after expiring. | false |
+| **items** | map[string]object | Params the parameters to use for the template. | false |
 | **reason** | string | A reason on why the request is needed | false |
 | **[requestor](#breakrequestspecrequestor)** | object | Requesting actor for the access request. | false |
 | **startTime** | string | Optional point in time when the access should begin. Must be in the future.
@@ -80,6 +78,8 @@ BreakRequestStatus defines the observed state of BreakRequest.
 | **[conditions](#breakrequeststatusconditionsindex)** | []object | conditions applied to the request.
 Known conditions are "Requested", "Pending", "Denied", "Approved", "Active" and "Expired".
 Latests condition is reflected in the phase. | false |
+| **keepFor** | string | The duration this BreakRequest will be kept in the system after it has been expired (eg. auditing purposes)
+If not set, the BreakRequest will be deleted after expiring. | false |
 | **keepUntil** | string | The time when the request was created.<br/><i>Format</i>: date-time<br/> | false |
 | **phase** | enum | <br/><i>Enum</i>: Requested, Pending, Denied, Approved, Active, Expired<br/> | false |
 | **[review](#breakrequeststatusreview)** | object | Reviewer refers to the subject that either approved or denied the request | false |
@@ -106,7 +106,7 @@ The Approved properties are set when the request is approved.
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
 | **duration** | string |  | false |
-| **items** | []object |  | false |
+| **items** | map[string]object |  | false |
 | **keepFor** | string |  | false |
 | **startTime** | string | <br/><i>Format</i>: date-time<br/> | false |
 
@@ -188,8 +188,8 @@ BreakRequestTemplateSpec defines the desired state of BreakRequestTemplate.
 | **[items](#breakrequesttemplatespecitemskey)** | map[string]object | Actual Items being created by this template | true |
 | **approvalCondition** | string | ApprovalCondition an optional CEL expression that must be successful for the request to be approved. | false |
 | **autoApprove** | boolean | AutoApprove requests created by this template will be automatically approved. | false |
-| **duration** | string | The default duration the BreakRequest referencing this template should be valid for. | false |
-| **keepFor** | string | The duration this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
+| **duration** | string | The default duration of the BreakRequest referencing this template should be valid for. | false |
+| **keepFor** | string | The duration of this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
 If not set, the AccessRequest will be deleted after expiring. | false |
 
 

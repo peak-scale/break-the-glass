@@ -53,7 +53,7 @@ func printAccessRequestApprovalTable(
 	})
 
 	// Example: printing .status.items nicely as YAML
-	for i, item := range brp.Items {
+	for name, item := range brp.Items {
 		content := prettyRawExtension(item)
 		if color {
 			content = colorizeYAML(content)
@@ -61,7 +61,7 @@ func printAccessRequestApprovalTable(
 		t.AppendSeparator()
 		// Multi-line cells are supported; keep them as one cell.
 		t.AppendRow(table.Row{
-			fmt.Sprintf("Status Item %d", i+1),
+			fmt.Sprintf("Status Item %q", name),
 			content,
 		})
 	}
@@ -71,33 +71,16 @@ func printAccessRequestApprovalTable(
 
 // PrettyRawExtension returns human-readable YAML for a RawExtension.
 // - If Object is non-nil, it marshals that.
-// - Else if Raw contains JSON, it converts JSON -> YAML.
-// - Else it returns Raw as string (best-effort).
-func prettyRawExtension(re runtime.RawExtension) string {
-	// 1) Prefer the typed Object if available
-	if re.Object != nil {
-		j, err := json.Marshal(re.Object)
-		if err == nil {
-			if y, errY := yaml.JSONToYAML(j); errY == nil {
-				return string(y)
-			}
-			return string(j) // fallback to JSON string
+// - Else converts JSON -> YAML.
+func prettyRawExtension(re runtime.Unstructured) string {
+	j, err := json.Marshal(re)
+	if err == nil {
+		if y, errY := yaml.JSONToYAML(j); errY == nil {
+			return string(y)
 		}
+		return string(j) // fallback to JSON string
 	}
-
-	// 2) If Raw looks like JSON, convert to YAML
-	if len(re.Raw) > 0 {
-		if json.Valid(re.Raw) {
-			if y, err := yaml.JSONToYAML(re.Raw); err == nil {
-				return string(y)
-			}
-			return string(re.Raw) // fallback to JSON string
-		}
-		// 3) Not JSON? Return as-is (may already be YAML or plain text)
-		return string(re.Raw)
-	}
-
-	return "—"
+	return "-"
 }
 
 // colorizeValue applies ANSI colors for YAML using chroma and returns a string suitable for terminal output.
@@ -163,11 +146,6 @@ func runBreakRequestAction(
 		return err
 	}
 
-	br := &addonsv1alpha1.BreakRequest{}
-	if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name, Namespace: namespace}, br); err != nil {
-		return err
-	}
-
 	user := &addonsv1alpha1.AccessEntity{
 		Type: addonsv1alpha1.AccessEntityTypeUser,
 		Name: cfg.Username,
@@ -179,6 +157,7 @@ func runBreakRequestAction(
 			return ctrlclient.IgnoreNotFound(err) == nil
 		},
 		func() error {
+			br := &addonsv1alpha1.BreakRequest{}
 			if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name, Namespace: namespace}, br); err != nil {
 				return err
 			}

@@ -147,8 +147,8 @@ func (br *BreakRequest) ActiveRequest(
 		activeUntil := now.Add(br.Spec.Duration.Duration)
 		br.Status.Active.ActiveUntil = metav1.NewTime(activeUntil)
 
-		if br.Spec.KeepFor > 0 {
-			br.Status.KeepUntil = metav1.NewTime(activeUntil.Add(time.Duration(br.Spec.KeepFor)))
+		if br.Status.KeepFor > 0 {
+			br.Status.KeepUntil = metav1.NewTime(activeUntil.Add(time.Duration(br.Status.KeepFor)))
 		}
 	}
 
@@ -177,12 +177,19 @@ func (br *BreakRequest) DeleteRequest() {
 }
 
 // Get the Properties which are relevant for Review
-func (br *BreakRequest) GetReviewProperties() (*BreakRequestStatusReviewProperties, error) {
+func (br *BreakRequest) GetReviewProperties(
+	brt *BreakRequestTemplate,
+) (*BreakRequestStatusReviewProperties, error) {
+	it, err := brt.RenderItemsItems(br)
+	if err != nil {
+		return nil, err
+	}
+
 	return &BreakRequestStatusReviewProperties{
 		Duration:  br.Spec.Duration,
 		StartTime: metav1.Now(),
-		Items:     br.Spec.Items,
-		KeepFor:   br.Spec.KeepFor,
+		Items:     it,
+		KeepFor:   brt.Spec.KeepFor,
 	}, nil
 }
 

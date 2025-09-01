@@ -28,6 +28,8 @@ import (
 	addonsv1alpha1 "github.com/peak-scale/break-the-glass/api/v1alpha1"
 )
 
+const defaultTemplateName = "foo"
+
 var _ = Describe("BreakRequest Webhook", func() {
 	var (
 		br        *addonsv1alpha1.BreakRequest
@@ -53,7 +55,7 @@ var _ = Describe("BreakRequest Webhook", func() {
 	Context("When creating BreakRequest under Validating Webhook", func() {
 		It("Should deny creation if the referenced template is not available", func() {
 			By("simulating an invalid creation scenario")
-			br.Spec.TemplateName = "foo"
+			br.Spec.TemplateName = defaultTemplateName
 			cl.EXPECT().
 				Get(gm.Any(), client.ObjectKey{Name: br.Spec.TemplateName}, gm.Any(), gm.Any()).
 				Return(errors.New("not found"))
@@ -65,6 +67,24 @@ var _ = Describe("BreakRequest Webhook", func() {
 			cl.EXPECT().
 				Get(gm.Any(), client.ObjectKey{Name: br.Spec.TemplateName}, gm.Any(), gm.Any())
 			Expect(validator.ValidateCreate(ctx, br)).Error().NotTo(HaveOccurred())
+		})
+	})
+
+	Context("When updating BreakRequest under Validating Webhook", func() {
+		var oldBr *addonsv1alpha1.BreakRequest
+
+		BeforeEach(func() {
+			oldBr = &addonsv1alpha1.BreakRequest{}
+		})
+		It("Should be valid if the template name is not changed", func() {
+			oldBr.Spec.TemplateName = defaultTemplateName
+			br.Spec.TemplateName = "bar"
+			Expect(validator.ValidateUpdate(ctx, oldBr, br)).Error().To(HaveOccurred())
+		})
+		It("Should not be allowed to change the templateName", func() {
+			oldBr.Spec.TemplateName = defaultTemplateName
+			br.Spec.TemplateName = defaultTemplateName
+			Expect(validator.ValidateUpdate(ctx, oldBr, br)).Error().NotTo(HaveOccurred())
 		})
 	})
 })

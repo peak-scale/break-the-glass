@@ -29,8 +29,17 @@ func (ps ParamSchema) DeepCopyInto(ps2 *ParamSchema) {
 // +kubebuilder:pruning:PreserveUnknownFields
 type Params unstructured.Unstructured
 
-func (p Params) DeepCopyInto(p2 *Params) {
+func (p *Params) DeepCopyInto(p2 *Params) {
 	p2.Object = runtime.DeepCopyJSON(p.Object)
+}
+
+func (p *Params) DeepCopy() *Params {
+	if p == nil {
+		return nil
+	}
+	out := new(Params)
+	p.DeepCopyInto(out)
+	return out
 }
 
 // TemplateItem
@@ -41,4 +50,11 @@ type TemplateItem struct {
 	ParamSchema ParamSchema `json:"paramSchema,omitempty"`
 }
 
-type TemplateItems map[string]TemplateItem
+type (
+	TemplateItems map[string]TemplateItem
+	Items         map[string]*unstructured.Unstructured
+)
+
+// TemplateParams
+// +kubebuilder:object:generate=true
+type TemplateParams map[string]Params

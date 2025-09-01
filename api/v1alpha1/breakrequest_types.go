@@ -18,8 +18,8 @@ package v1alpha1
 
 import (
 	"github.com/peak-scale/break-the-glass/api"
+	"github.com/peak-scale/break-the-glass/internal/items"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // BreakRequestSpec defines the desired state of BreakRequest.
@@ -27,11 +27,12 @@ type BreakRequestSpec struct {
 	// TemplateName the name of the template to use for this request
 	// +kubebuilder:validation:Required
 	TemplateName string `json:"templateName"`
+
+	// Params the parameters to use for the template.
+	Params items.TemplateParams `json:"items,omitempty"`
+
 	// Requesting actor for the access request.
 	Requestor AccessEntity `json:"requestor,omitempty"`
-	// Actual Items being requested
-	// +kubebuilder:validation:Required
-	Items []runtime.RawExtension `json:"items,omitempty"`
 	// A reason on why the request is needed
 	Reason string `json:"reason,omitempty"`
 	// The duration this BreakRequest should be valid for.
@@ -39,9 +40,6 @@ type BreakRequestSpec struct {
 	// if the request is deleted, it's the end of the duration.
 	// The Request can also be Terminated by another automation via calling the ExpireRequest() API-Function.
 	Duration metav1.Duration `json:"duration,omitempty"`
-	// The duration this BreakRequest will be kept in the system after it has been expired (eg. auditing purposes)
-	// If not set, the BreakRequest will be deleted after expiring.
-	KeepFor api.ExtendedDuration `json:"keepFor,omitempty"`
 	// Optional point in time when the access should begin. Must be in the future.
 	// If omitted, this is set to the current time. The Request must already be approved before the start time.
 	// +optional
@@ -49,13 +47,6 @@ type BreakRequestSpec struct {
 	// +kubebuilder:validation:Type=string
 	StartTime *metav1.Time `json:"startTime,omitempty"`
 }
-
-type SubjectScope string
-
-const (
-	ScopeCluster   SubjectScope = "Cluster"
-	ScopeNamespace SubjectScope = "Namespace"
-)
 
 // BreakRequestStatus defines the observed state of BreakRequest.
 type BreakRequestStatus struct {
@@ -65,6 +56,9 @@ type BreakRequestStatus struct {
 	Approved *BreakRequestStatusReviewProperties `json:"approved,omitempty"`
 	// Shows timestamps beetwen approval and termination of the request.
 	Active *BreakRequestStatusActive `json:"active,omitempty"`
+	// The duration this BreakRequest will be kept in the system after it has been expired (eg. auditing purposes)
+	// If not set, the BreakRequest will be deleted after expiring.
+	KeepFor api.ExtendedDuration `json:"keepFor,omitempty"`
 	// The time when the request was created.
 	KeepUntil metav1.Time `json:"keepUntil,omitempty"`
 	// conditions applied to the request.
@@ -82,10 +76,10 @@ type BreakRequestStatusActive struct {
 
 // These are the relevant properties which are subject to review and then persistet
 type BreakRequestStatusReviewProperties struct {
-	KeepFor   api.ExtendedDuration   `json:"keepFor,omitempty"`
-	Duration  metav1.Duration        `json:"duration,omitempty"`
-	StartTime metav1.Time            `json:"startTime,omitempty"`
-	Items     []runtime.RawExtension `json:"items,omitempty"`
+	KeepFor   api.ExtendedDuration `json:"keepFor,omitempty"`
+	Duration  metav1.Duration      `json:"duration,omitempty"`
+	StartTime metav1.Time          `json:"startTime,omitempty"`
+	Items     items.Items          `json:"items,omitempty"`
 }
 
 type BreakRequestStatusReview struct {

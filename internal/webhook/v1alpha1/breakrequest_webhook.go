@@ -70,15 +70,36 @@ func (v *BreakRequestCustomValidator) ValidateCreate(
 		},
 		brt,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("error loading template %s: %w", br.Spec.TemplateName, err)
+	}
 
+	_, err = brt.RenderItemsItems(br)
 	return nil, err
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type BreakRequest.
 func (v *BreakRequestCustomValidator) ValidateUpdate(
 	_ context.Context,
-	_, _ runtime.Object,
+	oldObj, newObj runtime.Object,
 ) (admission.Warnings, error) {
+	oldBr, ok := oldObj.(*addonsv1alpha1.BreakRequest)
+	if !ok {
+		return nil, fmt.Errorf("expected a BreakRequest object but got %T", oldObj)
+	}
+	newBr, ok := newObj.(*addonsv1alpha1.BreakRequest)
+	if !ok {
+		return nil, fmt.Errorf("expected a BreakRequest object but got %T", oldObj)
+	}
+
+	if oldBr.Spec.TemplateName != newBr.Spec.TemplateName {
+		return nil, fmt.Errorf(
+			"templateName cannot be changed. old: %s, new: %s",
+			oldBr.Spec.TemplateName,
+			newBr.Spec.TemplateName,
+		)
+	}
+
 	return nil, nil
 }
 

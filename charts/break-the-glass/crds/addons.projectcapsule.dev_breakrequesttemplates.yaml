@@ -57,8 +57,8 @@ spec:
                   automatically approved.
                 type: boolean
               duration:
-                description: The default duration the BreakRequest referencing this
-                  template should be valid for.
+                description: The default duration of the BreakRequest referencing
+                  this template should be valid for.
                 type: string
               items:
                 additionalProperties:
@@ -79,7 +79,7 @@ spec:
                 type: object
               keepFor:
                 description: |-
-                  The duration this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
+                  The duration of this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
                   If not set, the AccessRequest will be deleted after expiring.
                 pattern: ^(([0-9]+(\.[0-9]+)?)+(m|h|d|w))+$
                 type: string
@@ -93,5 +93,4 @@ spec:
         type: object
     served: true
     storage: true
-    subresources:
-      status: {}
+    subresources: {}

@@ -69,17 +69,12 @@ spec:
                   The Request can also be Terminated by another automation via calling the ExpireRequest() API-Function.
                 type: string
               items:
-                description: Actual Items being requested
-                items:
+                additionalProperties:
+                  description: Params
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
-                type: array
-              keepFor:
-                description: |-
-                  The duration this BreakRequest will be kept in the system after it has been expired (eg. auditing purposes)
-                  If not set, the BreakRequest will be deleted after expiring.
-                pattern: ^(([0-9]+(\.[0-9]+)?)+(m|h|d|w))+$
-                type: string
+                description: Params the parameters to use for the template.
+                type: object
               reason:
                 description: A reason on why the request is needed
                 type: string
@@ -108,7 +103,6 @@ spec:
                   request
                 type: string
             required:
-            - items
             - templateName
             type: object
           status:
@@ -131,10 +125,9 @@ spec:
                   duration:
                     type: string
                   items:
-                    items:
+                    additionalProperties:
                       type: object
-                      x-kubernetes-preserve-unknown-fields: true
-                    type: array
+                    type: object
                   keepFor:
                     pattern: ^(([0-9]+(\.[0-9]+)?)+(m|h|d|w))+$
                     type: string
@@ -202,6 +195,12 @@ spec:
                   - type
                   type: object
                 type: array
+              keepFor:
+                description: |-
+                  The duration this BreakRequest will be kept in the system after it has been expired (eg. auditing purposes)
+                  If not set, the BreakRequest will be deleted after expiring.
+                pattern: ^(([0-9]+(\.[0-9]+)?)+(m|h|d|w))+$
+                type: string
               keepUntil:
                 description: The time when the request was created.
                 format: date-time

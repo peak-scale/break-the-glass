@@ -21,9 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -56,16 +54,7 @@ var _ = Describe("BreakRequest Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					Spec: addonsv1alpha1.BreakRequestSpec{
-						Items: []runtime.RawExtension{
-							{Object: &v1.ConfigMap{
-								ObjectMeta: metav1.ObjectMeta{
-									Name:      "test-configmap",
-									Namespace: "default",
-								},
-							}},
-						},
-					},
+					Spec: addonsv1alpha1.BreakRequestSpec{},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
