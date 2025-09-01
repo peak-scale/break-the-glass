@@ -313,7 +313,7 @@ helm-plugin-schema:
 	$(HELM) plugin install https://github.com/losisin/helm-values-schema-json.git --version $(HELM_SCHEMA_VERSION) || true
 
 HELM_DOCS         := $(LOCALBIN)/helm-docs
-HELM_DOCS_VERSION := v1.14.1
+HELM_DOCS_VERSION := v1.14.2
 HELM_DOCS_LOOKUP  := norwoodj/helm-docs
 helm-doc:
 	@test -s $(HELM_DOCS) || \
@@ -323,7 +323,7 @@ helm-doc:
 # -- Tools
 ####################
 CONTROLLER_GEN         := $(LOCALBIN)/controller-gen
-CONTROLLER_GEN_VERSION := v0.18.0
+CONTROLLER_GEN_VERSION := v0.19.0
 CONTROLLER_GEN_LOOKUP  := kubernetes-sigs/controller-tools
 controller-gen:
 	@test -s $(CONTROLLER_GEN) && $(CONTROLLER_GEN) --version | grep -q $(CONTROLLER_GEN_VERSION) || \
@@ -334,7 +334,7 @@ ginkgo:
 	$(call go-install-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo)
 
 NWA           := $(LOCALBIN)/nwa
-NWA_VERSION   := v0.7.4
+NWA_VERSION   := v0.7.5
 NWA_LOOKUP    := B1NARY-GR0UP/nwa
 nwa:
 	@test -s $(NWA) && $(NWA) -h | grep -q $(NWA_VERSION) || \
@@ -348,7 +348,7 @@ ct:
 	$(call go-install-tool,$(CT),github.com/$(CT_LOOKUP)/v3/ct@$(CT_VERSION))
 
 KIND         := $(LOCALBIN)/kind
-KIND_VERSION := v0.29.0
+KIND_VERSION := v0.30.0
 KIND_LOOKUP  := kubernetes-sigs/kind
 kind:
 	@test -s $(KIND) && $(KIND) --version | grep -q $(KIND_VERSION) || \
@@ -376,7 +376,7 @@ setup-envtest: envtest ## Download the binaries required for ENVTEST in the loca
 	}
 
 GOLANGCI_LINT          := $(LOCALBIN)/golangci-lint
-GOLANGCI_LINT_VERSION  := v2.1.6
+GOLANGCI_LINT_VERSION  := v2.4.0
 GOLANGCI_LINT_LOOKUP   := golangci/golangci-lint
 golangci-lint: ## Download golangci-lint locally if necessary.
 	@test -s $(GOLANGCI_LINT) && $(GOLANGCI_LINT) -h | grep -q $(GOLANGCI_LINT_VERSION) || \
