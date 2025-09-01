@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/peak-scale/break-the-glass/internal/conditions"
 	"github.com/peak-scale/break-the-glass/internal/items"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -105,10 +106,6 @@ func (r *BreakRequestReconciler) reconcile(
 		cerr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 			current := &addonsv1alpha1.BreakRequest{}
 			if err := r.Get(ctx, client.ObjectKeyFromObject(request), current); err != nil {
-				if apierrors.IsNotFound(err) {
-					// if the request is deleted, we cannot find it anymore
-					return nil
-				}
 				return fmt.Errorf("failed to refetch instance before update: %w", err)
 			}
 
@@ -116,9 +113,17 @@ func (r *BreakRequestReconciler) reconcile(
 
 			log.V(7).Info("updating status", "status", current.Status)
 
-			return r.Client.Status().Update(ctx, current)
+			if err := r.Client.Status().Update(ctx, current); err != nil {
+				return fmt.Errorf("failed to update instance before update: %w", err)
+			}
+			return nil
 		})
 		if cerr != nil {
+			if apierrors.IsNotFound(err) {
+				// if the request is deleted, we cannot find it anymore
+				return
+			}
+
 			log.Error(cerr, "failed updating status")
 			if err == nil {
 				err = cerr
@@ -139,8 +144,17 @@ func (r *BreakRequestReconciler) reconcile(
 			time.Until(request.Status.Approved.StartTime.Time) <= 0 {
 			log.V(5).Info("BreakRequest is approved, activating request")
 
+			brt := &addonsv1alpha1.BreakRequestTemplate{}
+			if err := r.Get(ctx, client.ObjectKey{Name: request.Spec.TemplateName}, brt); err != nil {
+				return ctrl.Result{}, fmt.Errorf(
+					"failed to get BreakRequest Template %s: %w",
+					request.Spec.TemplateName,
+					err,
+				)
+			}
+
 			// Transition to Active Phase
-			if err := r.transitionRequestActivation(ctx, request); err != nil {
+			if err := r.transitionRequestActivation(ctx, request, brt); err != nil {
 				return ctrl.Result{}, fmt.Errorf(
 					"failed to activate BreakRequest %s: %w",
 					request.Name,
@@ -207,6 +221,34 @@ func (r *BreakRequestReconciler) reconcile(
 
 	// The case when the AccessRequest is newly created
 	default:
+
+		brt := &addonsv1alpha1.BreakRequestTemplate{}
+		if err := r.Get(ctx, client.ObjectKey{Name: request.Spec.TemplateName}, brt); err != nil {
+			return ctrl.Result{}, fmt.Errorf(
+				"failed to get BreakRequest Template %s: %w",
+				request.Spec.TemplateName,
+				err,
+			)
+		}
+
+		if ok, err := conditions.IsApproved(brt, request); ok {
+
+			props, err := request.GetReviewProperties(brt)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			err = request.ApproveRequest(&addonsv1alpha1.AccessEntity{
+				Type: addonsv1alpha1.AccessEntityTypeSystem,
+			}, props, "Auto Approved")
+			return ctrl.Result{}, err
+		} else if err != nil {
+			return ctrl.Result{}, fmt.Errorf(
+				"auto apprival could not be evaluated for BreakRequest %s: %w",
+				request.Name,
+				err,
+			)
+		}
 		log.V(5).Info("AccessRequest is newly created, moving to pending phase")
 
 		if err := request.SetRequested(); err != nil {
@@ -256,12 +298,8 @@ func (r *BreakRequestReconciler) addFinalizer(
 func (r *BreakRequestReconciler) transitionRequestActivation(
 	ctx context.Context,
 	request *addonsv1alpha1.BreakRequest,
+	brt *addonsv1alpha1.BreakRequestTemplate,
 ) error {
-	brt := &addonsv1alpha1.BreakRequestTemplate{}
-	if err := r.Get(ctx, client.ObjectKey{Name: request.Spec.TemplateName}, brt); err != nil {
-		return err
-	}
-
 	if err := request.ActiveRequest(brt, nil); err != nil {
 		return err
 	}

@@ -96,6 +96,7 @@ var _ = Describe("AccessRequest Controller", func() {
 
 		It("should successfully reconcile the resource that is newly created", func() {
 			cl.EXPECT().Get(gm.Any(), gm.Any(), matchBr)
+			cl.EXPECT().Get(gm.Any(), gm.Any(), matchBrt)
 			scl.EXPECT().Update(gm.Any(), matchBr, gm.Any())
 
 			_, err := controllerReconciler.reconcile(ctx, log, br)

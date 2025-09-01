@@ -4,6 +4,7 @@ metadata:
   name: test
 spec:
   defaultDuration: 20s
+  autoApprove: true
   items:
     cm:
       manifestTemplate:
