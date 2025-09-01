@@ -257,12 +257,17 @@ func (r *BreakRequestReconciler) transitionRequestActivation(
 	ctx context.Context,
 	request *addonsv1alpha1.BreakRequest,
 ) error {
-	if err := request.ActiveRequest(nil); err != nil {
+	brt := &addonsv1alpha1.BreakRequestTemplate{}
+	if err := r.Get(ctx, client.ObjectKey{Name: request.Spec.TemplateName}, brt); err != nil {
+		return err
+	}
+
+	if err := request.ActiveRequest(brt, nil); err != nil {
 		return err
 	}
 
 	// Reflect Binding
-	if err := r.reconcileItems(ctx, request); err != nil {
+	if err := r.reconcileItems(ctx, request, brt); err != nil {
 		return fmt.Errorf("failed to create AccessRequest items %s: %w", request.Name, err)
 	}
 
@@ -273,13 +278,9 @@ func (r *BreakRequestReconciler) transitionRequestActivation(
 func (r *BreakRequestReconciler) reconcileItems(
 	ctx context.Context,
 	request *addonsv1alpha1.BreakRequest,
+	brt *addonsv1alpha1.BreakRequestTemplate,
 ) (err error) {
 	var syncErr error
-
-	brt := &addonsv1alpha1.BreakRequestTemplate{}
-	if err := r.Get(ctx, client.ObjectKey{Name: request.Spec.TemplateName}, brt); err != nil {
-		return err
-	}
 
 	// reset the approved items, only the true approved items should be kept, including the modification done from the operator
 	request.Status.Approved.Items = make(items.Items)
@@ -334,12 +335,13 @@ func (r *BreakRequestReconciler) deleteItems(
 	var syncErr error
 
 	for _, item := range request.Status.Approved.Items {
-		us, err := runtime.DefaultUnstructuredConverter.ToUnstructured(item.Object)
+		obj, err := object(item)
 		if err != nil {
 			syncErr = errors.Join(syncErr, err)
 			continue
 		}
-		if derr := r.Delete(ctx, &unstructured.Unstructured{Object: us}); derr != nil {
+
+		if derr := r.Delete(ctx, obj); derr != nil {
 			if !apierrors.IsNotFound(derr) {
 				syncErr = errors.Join(syncErr, derr)
 				continue
@@ -348,4 +350,18 @@ func (r *BreakRequestReconciler) deleteItems(
 	}
 
 	return syncErr
+}
+
+func object(re *runtime.RawExtension) (client.Object, error) {
+	if re.Object == nil {
+		return nil, errors.New("object is nil")
+	}
+	if co, ok := re.Object.(client.Object); ok {
+		return co, nil
+	}
+	us, err := runtime.DefaultUnstructuredConverter.ToUnstructured(re.Object)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: us}, nil
 }

@@ -51,17 +51,24 @@ var reviewCmd = &cobra.Command{
 		if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name, Namespace: namespace}, br); err != nil {
 			return err
 		}
-		brt := &addonsv1alpha1.BreakRequestTemplate{}
-		if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: br.Spec.TemplateName}, brt); err != nil {
-			return err
+		if br.Status.Phase == "" {
+			return fmt.Errorf(
+				"BreakRequest %s is not yet processed, current phase: %q",
+				name,
+				br.Status.Phase,
+			)
 		}
 
 		if br.Status.Phase != addonsv1alpha1.RequestPhaseRequested {
 			return fmt.Errorf(
-				"BreakRequest %s is not in Requested phase (already reviewed), current phase: %s",
+				"BreakRequest %s is not in Requested phase (already reviewed), current phase: %q",
 				name,
 				br.Status.Phase,
 			)
+		}
+		brt := &addonsv1alpha1.BreakRequestTemplate{}
+		if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: br.Spec.TemplateName}, brt); err != nil {
+			return err
 		}
 
 		props, err := br.GetReviewProperties(brt)
@@ -94,7 +101,7 @@ var reviewCmd = &cobra.Command{
 		} else if denyFlag {
 			action = denyValue
 		} else {
-			printAccessRequestApprovalTable(br, props, !noColorFlag)
+			printAccessRequestApprovalTable(br, brt, props, !noColorFlag)
 
 			var input string
 			for {

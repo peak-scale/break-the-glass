@@ -1,0 +1,23 @@
+apiVersion: addons.projectcapsule.dev/v1alpha1
+kind: BreakRequestTemplate
+metadata:
+  name: test
+spec:
+  defaultDuration: 20s
+  items:
+    cm:
+      manifestTemplate:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: test-configmap
+        data:
+          test: "{{.key1}}"
+      paramSchema:
+        type: object
+        required:
+          - key1
+        properties:
+          key1:
+            type: string
+        additionalProperties: false

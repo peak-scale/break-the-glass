@@ -1,0 +1,10 @@
+apiVersion: addons.projectcapsule.dev/v1alpha1
+kind: BreakRequest
+metadata:
+  name: test
+  namespace: default
+spec:
+  templateName: test
+  params:
+    cm:
+     key1: value1

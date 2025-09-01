@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	addonsv1alpha1 "github.com/peak-scale/break-the-glass/api/v1alpha1"
+	"github.com/peak-scale/break-the-glass/api/v1alpha1"
 	"github.com/spf13/cobra"
 )
 
@@ -17,8 +17,12 @@ var activateCmd = &cobra.Command{
 		name = args[0]
 
 		return runBreakRequestAction(
-			func(br *addonsv1alpha1.BreakRequest, user *addonsv1alpha1.AccessEntity) error {
-				return br.ActiveRequest(user)
+			func(
+				br *v1alpha1.BreakRequest,
+				brt *v1alpha1.BreakRequestTemplate,
+				user *v1alpha1.AccessEntity,
+			) error {
+				return br.ActiveRequest(brt, user)
 			},
 		)
 	},

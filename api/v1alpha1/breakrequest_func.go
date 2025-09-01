@@ -119,9 +119,7 @@ func (br *BreakRequest) DenyRequest(entity *AccessEntity, reason string) (err er
 }
 
 // Activates the BreakRequest, allowing the subject to access the requested resources.
-func (br *BreakRequest) ActiveRequest(
-	entity *AccessEntity,
-) (err error) {
+func (br *BreakRequest) ActiveRequest(brt *BreakRequestTemplate, entity *AccessEntity) (err error) {
 	now := metav1.Now()
 
 	if err := br.transitionRequestPhase(
@@ -142,14 +140,23 @@ func (br *BreakRequest) ActiveRequest(
 
 	br.Status.Active.ActiveFrom = now
 
-	// If a duration was set, otherwise the lifecycle must be canceled manually
-	if br.Spec.Duration.Duration > 0 {
-		activeUntil := now.Add(br.Spec.Duration.Duration)
-		br.Status.Active.ActiveUntil = metav1.NewTime(activeUntil)
+	if brt.Spec.MaxDuration.Duration > 0 &&
+		br.Spec.Duration.Duration > brt.Spec.MaxDuration.Duration {
+		return fmt.Errorf("requested duration %s exceeds template maxDuration %s",
+			br.Spec.Duration.Duration, brt.Spec.MaxDuration.Duration)
+	}
 
-		if br.Status.KeepFor > 0 {
-			br.Status.KeepUntil = metav1.NewTime(activeUntil.Add(time.Duration(br.Status.KeepFor)))
-		}
+	duration := br.Spec.Duration.Duration
+	if duration == 0 {
+		duration = brt.Spec.DefaultDuration.Duration
+	}
+
+	// If a duration was set, otherwise the lifecycle must be canceled manually
+	activeUntil := now.Add(duration)
+	br.Status.Active.ActiveUntil = metav1.NewTime(activeUntil)
+
+	if br.Status.KeepFor > 0 {
+		br.Status.KeepUntil = metav1.NewTime(activeUntil.Add(time.Duration(br.Status.KeepFor)))
 	}
 
 	return nil

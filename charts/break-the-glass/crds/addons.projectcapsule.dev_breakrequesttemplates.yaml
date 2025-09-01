@@ -56,7 +56,7 @@ spec:
                 description: AutoApprove requests created by this template will be
                   automatically approved.
                 type: boolean
-              duration:
+              defaultDuration:
                 description: The default duration of the BreakRequest referencing
                   this template should be valid for.
                 type: string
@@ -81,7 +81,12 @@ spec:
                   If not set, the AccessRequest will be deleted after expiring.
                 pattern: ^(([0-9]+(\.[0-9]+)?)+(m|h|d|w))+$
                 type: string
+              maxDuration:
+                description: The max allowed duration of the BreakRequest referencing
+                  this template should be valid for.
+                type: string
             required:
+            - defaultDuration
             - items
             type: object
           status:

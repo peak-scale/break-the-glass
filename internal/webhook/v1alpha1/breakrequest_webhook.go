@@ -74,6 +74,12 @@ func (v *BreakRequestCustomValidator) ValidateCreate(
 		return nil, fmt.Errorf("error loading template %s: %w", br.Spec.TemplateName, err)
 	}
 
+	if brt.Spec.MaxDuration.Duration > 0 &&
+		br.Spec.Duration.Duration > brt.Spec.MaxDuration.Duration {
+		return nil, fmt.Errorf("requested duration %s exceeds template maxDuration %s",
+			br.Spec.Duration.Duration, brt.Spec.MaxDuration.Duration)
+	}
+
 	_, err = brt.RenderItemsItems(br)
 	return nil, err
 }
@@ -99,7 +105,6 @@ func (v *BreakRequestCustomValidator) ValidateUpdate(
 			newBr.Spec.TemplateName,
 		)
 	}
-
 	return nil, nil
 }
 

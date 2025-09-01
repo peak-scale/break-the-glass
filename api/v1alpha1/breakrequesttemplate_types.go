@@ -29,7 +29,10 @@ type BreakRequestTemplateSpec struct {
 	Items items.TemplateItems `json:"items,omitempty"`
 
 	// The default duration of the BreakRequest referencing this template should be valid for.
-	DefaultDuration metav1.Duration `json:"duration,omitempty"`
+	// +kubebuilder:validation:Required
+	DefaultDuration metav1.Duration `json:"defaultDuration,omitempty"`
+	// The max allowed duration of the BreakRequest referencing this template should be valid for.
+	MaxDuration metav1.Duration `json:"maxDuration,omitempty"`
 
 	// The duration of this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
 	// If not set, the AccessRequest will be deleted after expiring.

@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"errors"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -61,12 +62,21 @@ var _ = Describe("BreakRequest Webhook", func() {
 				Return(errors.New("not found"))
 			Expect(validator.ValidateCreate(ctx, br)).Error().To(HaveOccurred())
 		})
-		It("Should all creation if the referenced template is available", func() {
+		It("Should allow creation if the referenced template is available", func() {
 			By("simulating an invalid creation scenario")
 			br.Spec.TemplateName = "bar"
 			cl.EXPECT().
 				Get(gm.Any(), client.ObjectKey{Name: br.Spec.TemplateName}, gm.Any(), gm.Any())
 			Expect(validator.ValidateCreate(ctx, br)).Error().NotTo(HaveOccurred())
+		})
+		It("Should deny creation if duration exceeds the template max duration", func() {
+			br.Spec.Duration.Duration = time.Hour
+			cl.EXPECT().
+				Get(gm.Any(), client.ObjectKey{Name: br.Spec.TemplateName}, gm.Any(), gm.Any()).
+				Do(func(_ any, _ any, brt *addonsv1alpha1.BreakRequestTemplate, _ ...any) {
+					brt.Spec.MaxDuration.Duration = time.Minute
+				})
+			Expect(validator.ValidateCreate(ctx, br)).Error().To(HaveOccurred())
 		})
 	})
 

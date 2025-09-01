@@ -185,12 +185,13 @@ BreakRequestTemplateSpec defines the desired state of BreakRequestTemplate.
 
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
+| **defaultDuration** | string | The default duration of the BreakRequest referencing this template should be valid for. | true |
 | **[items](#breakrequesttemplatespecitemskey)** | map[string]object | Actual Items being created by this template | true |
 | **approvalCondition** | string | ApprovalCondition an optional CEL expression that must be successful for the request to be approved. | false |
 | **autoApprove** | boolean | AutoApprove requests created by this template will be automatically approved. | false |
-| **duration** | string | The default duration of the BreakRequest referencing this template should be valid for. | false |
 | **keepFor** | string | The duration of this AccessRequest will be kept in the system after it has been expired (eg. auditing purposes)
 If not set, the AccessRequest will be deleted after expiring. | false |
+| **maxDuration** | string | The max allowed duration of the BreakRequest referencing this template should be valid for. | false |
 
 
 ### BreakRequestTemplate.spec.items[key]

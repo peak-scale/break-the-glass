@@ -21,12 +21,13 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 
-	addonsv1alpha1 "github.com/peak-scale/break-the-glass/api/v1alpha1"
+	"github.com/peak-scale/break-the-glass/api/v1alpha1"
 )
 
 func printAccessRequestApprovalTable(
-	br *addonsv1alpha1.BreakRequest,
-	brp *addonsv1alpha1.BreakRequestStatusReviewProperties,
+	br *v1alpha1.BreakRequest,
+	brt *v1alpha1.BreakRequestTemplate,
+	brp *v1alpha1.BreakRequestStatusReviewProperties,
 	color bool,
 ) {
 	t := table.NewWriter()
@@ -44,10 +45,16 @@ func printAccessRequestApprovalTable(
 		keepStr = brp.KeepFor.String()
 	}
 
+	duration := br.Spec.Duration.Duration
+	if duration == 0 {
+		duration = brt.Spec.DefaultDuration.Duration
+	}
+
 	t.AppendHeader(table.Row{"Field", "Value"})
 	t.AppendRows([]table.Row{
 		{"Name", colorizeValue(br.Name, color)},
 		{"Namespace", colorizeValue(br.Namespace, color)},
+		{"Duration", colorizeValue(duration.String(), color)},
 		{"ExtendedDuration", colorizeValue(durStr, color)},
 		{"Keep", colorizeValue(keepStr, color)},
 	})
@@ -138,7 +145,7 @@ func newK8sClient() (*rest.Config, ctrlclient.Client, error) {
 }
 
 func runBreakRequestAction(
-	action func(br *addonsv1alpha1.BreakRequest, user *addonsv1alpha1.AccessEntity) error,
+	action func(br *v1alpha1.BreakRequest, brt *v1alpha1.BreakRequestTemplate, user *v1alpha1.AccessEntity) error,
 ) error {
 	ctx := context.Background()
 	cfg, k8sClient, err := newK8sClient()
@@ -146,8 +153,8 @@ func runBreakRequestAction(
 		return err
 	}
 
-	user := &addonsv1alpha1.AccessEntity{
-		Type: addonsv1alpha1.AccessEntityTypeUser,
+	user := &v1alpha1.AccessEntity{
+		Type: v1alpha1.AccessEntityTypeUser,
 		Name: cfg.Username,
 	}
 
@@ -157,12 +164,16 @@ func runBreakRequestAction(
 			return ctrlclient.IgnoreNotFound(err) == nil
 		},
 		func() error {
-			br := &addonsv1alpha1.BreakRequest{}
+			br := &v1alpha1.BreakRequest{}
 			if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name, Namespace: namespace}, br); err != nil {
 				return err
 			}
+			brt := &v1alpha1.BreakRequestTemplate{}
+			if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: br.Spec.TemplateName}, brt); err != nil {
+				return err
+			}
 
-			if err := action(br, user); err != nil {
+			if err := action(br, brt, user); err != nil {
 				return err
 			}
 			return k8sClient.Status().Update(ctx, br)
