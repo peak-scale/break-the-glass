@@ -156,16 +156,8 @@ var _ = Describe("AccessRequest Controller", func() {
 				Do(func(_ context.Context, _ rc.ObjectKey, brt *bgv1.BreakRequestTemplate, _ ...rc.GetOption) {
 					brt.Spec.Items = items.TemplateItems{
 						templateName: {
-							ManifestTemplate: runtime.RawExtension{Raw: []byte(`{
-  "kind": "ConfigMap",
-  "metadata": {
-    "name": "test-configmap"
-  },
-  "data": {
-    "test": "{{.key1}}"
-  }
-}`)},
-							ParamSchema: runtime.RawExtension{Raw: []byte(`{"type": "string"}`)},
+							ManifestTemplate: mtConfigMapParameterized,
+							ParamSchema:      psString,
 						},
 					}
 				})

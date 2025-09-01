@@ -23,7 +23,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/peak-scale/break-the-glass/internal/items"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -63,18 +62,8 @@ var _ = Describe("BreakRequest Controller", func() {
 					Spec: v1alpha1.BreakRequestTemplateSpec{
 						Items: items.TemplateItems{
 							templateName: {
-								ManifestTemplate: runtime.RawExtension{Raw: []byte(`{
-  "kind": "ConfigMap",
-  "metadata": {
-    "name": "test-configmap"
-  },
-  "data": {
-    "test": "{{.key1}}"
-  }
-}`)},
-								ParamSchema: runtime.RawExtension{
-									Raw: []byte(`{"type": "string"}`),
-								},
+								ManifestTemplate: mtConfigMapParameterized,
+								ParamSchema:      psString,
 							},
 						},
 					},
