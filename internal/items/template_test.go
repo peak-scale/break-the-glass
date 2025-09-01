@@ -8,51 +8,34 @@ import (
 var _ = Describe("Template", func() {
 	Context("RenderTemplate", func() {
 		var (
-			it     Item
-			params Params
+			it     string
+			params string
 		)
-
-		BeforeEach(func() {
-			it = Item{}
-			params = Params{}
-		})
 
 		Context("Rendering an item", func() {
 			It("Should create the same item if the source has no template params", func() {
-				it.Object = map[string]any{
-					"key1": "value1",
-					"key2": map[string]any{
-						"nestedKey": "nestedValue",
-					},
-				}
-				res, err := RenderTemplate(it, params)
+				it = `key1: value1
+key2:
+  nestedKey: nestedValue`
+
+				res, err := RenderTemplate(y2j(it), y2j(params))
 				Expect(err).NotTo(HaveOccurred())
-				Expect(res.Object).To(Equal(it.Object))
+				Expect(res).To(Equal(y2j(it)))
 			})
 			It("Should create a valid item if source has no template params", func() {
-				it.Object = map[string]any{
-					"key1": "{{.key1}}",
-					"key2": map[string]any{
-						"nestedKey": "nestedValue",
-					},
-				}
-				params = Params{Object: map[string]any{
-					"key1": "value1",
-				}}
-				res, err := RenderTemplate(it, params)
+				it = `key1: "{{.key1}}"
+key2:
+  nestedKey: nestedValue`
+				params = "key1: value1"
+				res, err := RenderTemplate(y2j(it), y2j(params))
 				Expect(err).NotTo(HaveOccurred())
-				Expect(res.Object).To(Equal(map[string]any{
-					"key1": "value1",
-					"key2": map[string]any{
-						"nestedKey": "nestedValue",
-					},
-				}))
+				Expect(res).To(Equal(y2j(`key1: value1
+key2:
+  nestedKey: nestedValue`)))
 			})
 			It("Should fail if the template is invalid", func() {
-				it.Object = map[string]any{
-					"key1": "{{{.key1}}",
-				}
-				_, err := RenderTemplate(it, params)
+				it = `key1: "{{{.key1}}"`
+				_, err := RenderTemplate(y2j(it), y2j(params))
 				Expect(err).To(HaveOccurred())
 			})
 		})

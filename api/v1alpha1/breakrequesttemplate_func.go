@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/peak-scale/break-the-glass/internal/items"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func (brt *BreakRequestTemplate) RenderItemsItems(br *BreakRequest) (items.Items, error) {
@@ -32,11 +33,15 @@ func (brt *BreakRequestTemplate) RenderItemsItems(br *BreakRequest) (items.Items
 
 	var rerr error
 	for name, i := range brt.Spec.Items {
-		r, err := items.RenderTemplate(i.Item, params[name])
+		var p []byte
+		if ip, ok := params[name]; ok {
+			p = ip.Raw
+		}
+		r, err := items.RenderTemplate(i.ManifestTemplate.Raw, p)
 		if err != nil {
 			rerr = errors.Join(rerr, fmt.Errorf("error rendering template item %s: %w", name, err))
 		}
-		rendered[name] = r
+		rendered[name] = &runtime.RawExtension{Raw: r}
 	}
 	return rendered, rerr
 }

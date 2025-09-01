@@ -64,16 +64,14 @@ spec:
                 additionalProperties:
                   description: TemplateItem
                   properties:
-                    item:
-                      description: Item
+                    manifestTemplate:
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
                     paramSchema:
-                      description: ParamSchema
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
                   required:
-                  - item
+                  - manifestTemplate
                   type: object
                 description: Actual Items being created by this template
                 type: object

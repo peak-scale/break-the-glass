@@ -2,30 +2,28 @@ package items
 
 import (
 	"bytes"
+	"encoding/json"
 	"text/template"
-
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/yaml"
 )
 
-func RenderTemplate(i Item, params Params) (*unstructured.Unstructured, error) {
-	tpl, err := ValidateTemplate(i)
+func RenderTemplate(template []byte, params []byte) ([]byte, error) {
+	tpl, err := ValidateTemplate(template)
 	if err != nil {
 		return nil, err
 	}
-	var res bytes.Buffer
-	if err := tpl.Execute(&res, params.Object); err != nil {
+
+	p := make(map[string]any)
+	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
-	out := &unstructured.Unstructured{}
-	err = yaml.Unmarshal(res.Bytes(), &out.Object)
-	return out, err
+
+	var res bytes.Buffer
+	if err := tpl.Execute(&res, p); err != nil {
+		return nil, err
+	}
+	return res.Bytes(), nil
 }
 
-func ValidateTemplate(i Item) (*template.Template, error) {
-	it, err := yaml.Marshal(i.Object)
-	if err != nil {
-		return nil, err
-	}
-	return template.New("item").Parse(string(it))
+func ValidateTemplate(tpl []byte) (*template.Template, error) {
+	return template.New("item").Parse(string(tpl))
 }

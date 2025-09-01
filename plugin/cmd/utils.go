@@ -72,7 +72,7 @@ func printAccessRequestApprovalTable(
 // PrettyRawExtension returns human-readable YAML for a RawExtension.
 // - If Object is non-nil, it marshals that.
 // - Else converts JSON -> YAML.
-func prettyRawExtension(re runtime.Unstructured) string {
+func prettyRawExtension(re *runtime.RawExtension) string {
 	j, err := json.Marshal(re)
 	if err == nil {
 		if y, errY := yaml.JSONToYAML(j); errY == nil {

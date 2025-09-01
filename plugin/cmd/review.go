@@ -52,7 +52,7 @@ var reviewCmd = &cobra.Command{
 			return err
 		}
 		brt := &addonsv1alpha1.BreakRequestTemplate{}
-		if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name}, brt); err != nil {
+		if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: br.Spec.TemplateName}, brt); err != nil {
 			return err
 		}
 

@@ -46,7 +46,7 @@ BreakRequestSpec defines the desired state of BreakRequest.
 If no duration was defined the lifecycle is bound to the request itself -
 if the request is deleted, it's the end of the duration.
 The Request can also be Terminated by another automation via calling the ExpireRequest() API-Function. | false |
-| **items** | map[string]object | Params the parameters to use for the template. | false |
+| **params** | map[string]object | Params the parameters to use for the template. | false |
 | **reason** | string | A reason on why the request is needed | false |
 | **[requestor](#breakrequestspecrequestor)** | object | Requesting actor for the access request. | false |
 | **startTime** | string | Optional point in time when the access should begin. Must be in the future.
@@ -106,7 +106,7 @@ The Approved properties are set when the request is approved.
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
 | **duration** | string |  | false |
-| **items** | map[string]object |  | false |
+| **items** | map[string]object | Items | false |
 | **keepFor** | string |  | false |
 | **startTime** | string | <br/><i>Format</i>: date-time<br/> | false |
 
@@ -201,5 +201,5 @@ TemplateItem
 
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
-| **item** | object | Item | true |
-| **paramSchema** | object | ParamSchema | false |
+| **manifestTemplate** | object |  | true |
+| **paramSchema** | object |  | false |

@@ -29,7 +29,7 @@ type BreakRequestSpec struct {
 	TemplateName string `json:"templateName"`
 
 	// Params the parameters to use for the template.
-	Params items.TemplateParams `json:"items,omitempty"`
+	Params items.TemplateParams `json:"params,omitempty"`
 
 	// Requesting actor for the access request.
 	Requestor AccessEntity `json:"requestor,omitempty"`

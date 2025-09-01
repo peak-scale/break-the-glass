@@ -2,6 +2,7 @@ package items
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
@@ -12,18 +13,18 @@ import (
 
 func ValidateItems(tis TemplateItems) error {
 	for name, ti := range tis {
-		if _, err := ValidateSchema(ti.ParamSchema); err != nil {
+		if _, err := ValidateSchema(ti.ParamSchema.Raw); err != nil {
 			return fmt.Errorf("paramSchema for item %q is invalid: %w", name, err)
 		}
-		if _, err := ValidateTemplate(ti.Item); err != nil {
+		if _, err := ValidateTemplate(ti.ManifestTemplate.Raw); err != nil {
 			return fmt.Errorf("template for item %q is invalid: %w", name, err)
 		}
 	}
 	return nil
 }
 
-func Validate(ps ParamSchema, params Params) error {
-	schema, err := ValidateSchema(ps)
+func Validate(schemaData []byte, params []byte) error {
+	schema, err := ValidateSchema(schemaData)
 	if err != nil || schema == nil {
 		return err
 	}
@@ -31,13 +32,13 @@ func Validate(ps ParamSchema, params Params) error {
 	// Create validator
 	validator := validate.NewSchemaValidator(schema, nil, "", strfmt.Default)
 
-	obj := params.Object
-	if obj == nil {
-		obj = make(map[string]any)
+	p := make(map[string]any)
+	if err := json.Unmarshal(params, &p); err != nil {
+		return err
 	}
 
 	// Validate the data
-	result := validator.Validate(obj)
+	result := validator.Validate(p)
 	if !result.IsValid() {
 		var errors []string
 		for _, err := range result.Errors {
@@ -49,22 +50,20 @@ func Validate(ps ParamSchema, params Params) error {
 }
 
 // ValidateSchema prepares the validation schema. Returns nil if the schema is empty.
-func ValidateSchema(ps ParamSchema) (*spec.Schema, error) {
-	if ps.Empty() {
+func ValidateSchema(schemaData []byte) (*spec.Schema, error) {
+	if len(schemaData) == 0 {
 		return nil, nil
 	}
 
-	schemaData := ps.JSON()
-
 	err := metaValidateJSONSchema(schemaData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to validate OpenAPI schema: %w", err)
+		return nil, fmt.Errorf("failed to validate OpenAPI schemaData: %w", err)
 	}
 
-	// Convert to OpenAPI spec schema
+	// Convert to OpenAPI spec schemaData
 	schema := &spec.Schema{}
 	if err := schema.UnmarshalJSON(schemaData); err != nil {
-		return nil, fmt.Errorf("failed to create OpenAPI schema: %w", err)
+		return nil, fmt.Errorf("failed to create OpenAPI schemaData: %w", err)
 	}
 	return schema, nil
 }

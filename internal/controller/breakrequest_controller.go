@@ -26,7 +26,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -281,14 +283,18 @@ func (r *BreakRequestReconciler) reconcileItems(
 
 	// reset the approved items, only the true approved items should be kept, including the modification done from the operator
 	request.Status.Approved.Items = make(items.Items)
-
+	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())
 	rendered, err := brt.RenderItemsItems(request)
 	if err != nil {
 		return err
 	}
 
-	for name, obj := range rendered {
-
+	for name, raw := range rendered {
+		obj := &unstructured.Unstructured{}
+		if _, _, decodeErr := codecFactory.UniversalDeserializer().Decode(raw.Raw, nil, obj); decodeErr != nil {
+			syncErr = errors.Join(syncErr, decodeErr)
+			continue
+		}
 		obj.SetNamespace(request.Namespace)
 
 		if orerr := controllerutil.SetOwnerReference(request, obj, r.Scheme); orerr != nil {
@@ -298,7 +304,7 @@ func (r *BreakRequestReconciler) reconcileItems(
 		}
 
 		// append the item to the approved items (use deep copy to avoid using the cluster object)
-		request.Status.Approved.Items[name] = obj.DeepCopy()
+		request.Status.Approved.Items[name] = &runtime.RawExtension{Object: obj.DeepCopy()}
 
 		// Apply the object to the cluster
 		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, obj, func() error {
@@ -328,7 +334,12 @@ func (r *BreakRequestReconciler) deleteItems(
 	var syncErr error
 
 	for _, item := range request.Status.Approved.Items {
-		if derr := r.Delete(ctx, item); derr != nil {
+		us, err := runtime.DefaultUnstructuredConverter.ToUnstructured(item.Object)
+		if err != nil {
+			syncErr = errors.Join(syncErr, err)
+			continue
+		}
+		if derr := r.Delete(ctx, &unstructured.Unstructured{Object: us}); derr != nil {
 			if !apierrors.IsNotFound(derr) {
 				syncErr = errors.Join(syncErr, derr)
 				continue

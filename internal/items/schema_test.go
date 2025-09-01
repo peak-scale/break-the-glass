@@ -1,21 +1,26 @@
 package items
 
 import (
+	"encoding/json"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.yaml.in/yaml/v3"
 )
+
+func y2j(in string) []byte {
+	m := make(map[string]any)
+	err := yaml.Unmarshal([]byte(in), &m)
+	Expect(err).NotTo(HaveOccurred())
+	b, err := json.Marshal(m)
+	Expect(err).NotTo(HaveOccurred())
+	return b
+}
 
 var _ = Describe("OpenAPI Schema", func() {
 	DescribeTable("Validate",
-		func(schemaJSON map[string]any, params map[string]any, expectErr bool) {
-			paramSchema := ParamSchema{
-				Object: schemaJSON,
-			}
-			p := Params{
-				Object: params,
-			}
-
-			err := Validate(paramSchema, p)
+		func(schemaJSON string, params string, expectErr bool) {
+			err := Validate(y2j(schemaJSON), y2j(params))
 			if expectErr {
 				Expect(err).To(HaveOccurred())
 			} else {
@@ -23,91 +28,62 @@ var _ = Describe("OpenAPI Schema", func() {
 			}
 		},
 		Entry("valid schema and valid params",
-			map[string]any{
-				"type":     "object",
-				"required": []string{"key1"},
-				"properties": map[string]any{
-					"key1": map[string]any{
-						"type": "string",
-					},
-				},
-			},
-			map[string]any{
-				"key1": "value1",
-			},
+			`type: object
+required: ["key1"]
+properties:
+  key1:
+    type: string
+`,
+			"key1: value1",
 			false,
 		), Entry("valid schema and valid params (one allowed extra field)",
-			map[string]any{
-				"type":     "object",
-				"required": []string{"key1"},
-				"properties": map[string]any{
-					"key1": map[string]any{
-						"type": "string",
-					},
-				},
-			},
-			map[string]any{
-				"key1": "value1",
-				"key2": "value2",
-			},
+			`type: object
+required: ["key1"]
+properties:
+  key1:
+    type: string
+`,
+			`key1: value1
+key2: value2`,
 			false,
 		), Entry("valid schema and invalid params (one additional extra field)",
-			map[string]any{
-				"type":     "object",
-				"required": []string{"key1"},
-				"properties": map[string]any{
-					"key1": map[string]any{
-						"type": "string",
-					},
-				},
-				"additionalProperties": false,
-			},
-			map[string]any{
-				"key1": "value1",
-				"key2": "value2",
-			},
+			`type: object
+required: ["key1"]
+properties:
+  key1:
+    type: string
+additionalProperties: false
+`,
+			`key1: value1
+key2: value2`,
 			true,
 		),
 		Entry("valid schema but invalid params",
-			map[string]any{
-				"type":     "object",
-				"required": []string{"key1"},
-				"properties": map[string]any{
-					"key1": map[string]any{
-						"type": "string",
-					},
-				},
-			},
-			map[string]any{
-				"key1": 123,
-			},
+			`type: object
+required: ["key1"]
+properties:
+  key1:
+    type: string
+`, "key1: 123",
 			true,
 		),
 		Entry("schema missing required field",
-			map[string]any{
-				"type":     "object",
-				"required": []string{"key1"},
-				"properties": map[string]any{
-					"key1": map[string]any{
-						"type": "string",
-					},
-				},
-			},
-			map[string]any{},
+			`type: object
+required: ["key1"]
+properties:
+  key1:
+    type: string
+`, "",
 			true,
 		),
 		Entry("invalid schema JSON",
-			map[string]any{
-				"type": nil,
-			},
-			map[string]any{
-				"key1": "value1",
-			},
+			"type:",
+			"key1: value1",
 			true,
 		),
 		Entry("empty schema and params",
-			map[string]any{},
-			map[string]any{},
+			"",
+			"",
 			false,
 		),
 	)
