@@ -6,15 +6,17 @@ import (
 	"text/template"
 )
 
-func RenderTemplate(template []byte, params []byte) ([]byte, error) {
-	tpl, err := ValidateTemplate(template)
+func RenderTemplate(tplData []byte, params []byte) ([]byte, error) {
+	tpl, err := ValidateTemplate(tplData)
 	if err != nil {
 		return nil, err
 	}
 
 	p := make(map[string]any)
-	if err := json.Unmarshal(params, &p); err != nil {
-		return nil, err
+	if len(params) > 0 {
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, err
+		}
 	}
 
 	var res bytes.Buffer

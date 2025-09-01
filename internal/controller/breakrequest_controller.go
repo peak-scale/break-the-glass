@@ -283,12 +283,12 @@ func (r *BreakRequestReconciler) reconcileItems(
 
 	// reset the approved items, only the true approved items should be kept, including the modification done from the operator
 	request.Status.Approved.Items = make(items.Items)
-	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())
 	rendered, err := brt.RenderItemsItems(request)
 	if err != nil {
 		return err
 	}
 
+	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())
 	for name, raw := range rendered {
 		obj := &unstructured.Unstructured{}
 		if _, _, decodeErr := codecFactory.UniversalDeserializer().Decode(raw.Raw, nil, obj); decodeErr != nil {

@@ -23,7 +23,6 @@ import (
 	"github.com/peak-scale/break-the-glass/internal/items"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("BreakRequestTemplate Webhook", func() {
@@ -37,8 +36,7 @@ var _ = Describe("BreakRequestTemplate Webhook", func() {
 			Spec: addonsv1alpha1.BreakRequestTemplateSpec{
 				Items: items.TemplateItems{
 					"cm": items.TemplateItem{
-						Item:        us(&corev1.ConfigMap{}),
-						ParamSchema: items.ParamSchema{},
+						ManifestTemplate: runtime.RawExtension{Object: &corev1.ConfigMap{}},
 					},
 				},
 			},
@@ -112,11 +110,7 @@ var _ = Describe("BreakRequestTemplate Webhook", func() {
 			BeforeEach(func() {
 				brt.Spec.Items = items.TemplateItems{
 					"test": {
-						ParamSchema: items.ParamSchema{
-							Object: map[string]any{
-								"type": "string",
-							},
-						},
+						ParamSchema: runtime.RawExtension{Raw: []byte(`{"type": "string"}`)},
 					},
 				}
 			})
@@ -133,11 +127,7 @@ var _ = Describe("BreakRequestTemplate Webhook", func() {
 			BeforeEach(func() {
 				brt.Spec.Items = items.TemplateItems{
 					"test": {
-						ParamSchema: items.ParamSchema{
-							Object: map[string]any{
-								"type": nil,
-							},
-						},
+						ParamSchema: runtime.RawExtension{Raw: []byte(`"type": `)},
 					},
 				}
 			})
@@ -152,8 +142,3 @@ var _ = Describe("BreakRequestTemplate Webhook", func() {
 		})
 	})
 })
-
-func us(obj client.Object) items.Item {
-	us, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-	return items.Item{Object: us}
-}

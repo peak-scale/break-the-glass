@@ -154,12 +154,17 @@ var _ = Describe("AccessRequest Controller", func() {
 			cl.EXPECT().Get(gm.Any(), gm.Any(), matchBrt).
 				Do(func(_ context.Context, _ rc.ObjectKey, brt *bgv1.BreakRequestTemplate, _ ...rc.GetOption) {
 					brt.Spec.Items = items.TemplateItems{
-						"test": {
-							ParamSchema: items.ParamSchema{
-								Object: map[string]any{
-									"type": "string",
-								},
-							},
+						templateName: {
+							ManifestTemplate: runtime.RawExtension{Raw: []byte(`{
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "test-configmap"
+  },
+  "data": {
+    "test": "{{.key1}}"
+  }
+}`)},
+							ParamSchema: runtime.RawExtension{Raw: []byte(`{"type": "string"}`)},
 						},
 					}
 				})
@@ -176,9 +181,11 @@ var _ = Describe("AccessRequest Controller", func() {
 			Expect(br.Status.Phase).To(Equal(bgv1.RequestPhaseActive))
 
 			Expect(br.Status.Approved.Items).To(HaveLen(1))
-			cm, ok := br.Status.Approved.Items["test"]
+			Expect(br.Status.Approved.Items).To(HaveKey(templateName))
+			obj := br.Status.Approved.Items[templateName].Object
+			co, ok := obj.(rc.Object)
 			Expect(ok).To(BeTrue())
-			Expect(cm.GetOwnerReferences()).To(HaveLen(1))
+			Expect(co.GetOwnerReferences()).To(HaveLen(1))
 		})
 	})
 })
