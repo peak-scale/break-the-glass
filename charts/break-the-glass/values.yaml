@@ -70,7 +70,7 @@ args:
   pprof: false
   # -- Log Level
   logLevel: 4
-  # -- A list of extra arguments to add to the access-requests operator
+  # -- A list of extra arguments to add to the break-the-glass operator
   extraArgs: []
 
 # -- Amount of replicas
@@ -79,7 +79,7 @@ image:
   # -- Set the image registry
   registry: ghcr.io
   # -- Set the image repository
-  repository: peak-scale/access-requests
+  repository: peak-scale/break-the-glass
   # -- Set the image pull policy.
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion.

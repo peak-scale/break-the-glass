@@ -17,7 +17,7 @@ KIND_K8S_VERSION="v1.33.0" make e2e-build
 When you want to quickly develop, you can scale down the operator within the cluster:
 
 ```shell
-kubectl scale deploy access-requests --replicas=0 -n access-requests
+kubectl scale deploy break-the-glass --replicas=0 -n break-the-glass
 ```
 
 And then execute the binary:
@@ -29,8 +29,8 @@ go run cmd/main.go -zap-log-level=10
 You might need to first export the Kubeconfig for the cluster (If you are using multiple clusters at the same time):
 
 ```shell
-bin/kind get kubeconfig --name access-requests  > /tmp/access-requests
-export KUBECONFIG="/tmp/access-requests"
+bin/kind get kubeconfig --name break-the-glass  > /tmp/break-the-glass
+export KUBECONFIG="/tmp/break-the-glass"
 ```
 
 ## Testing

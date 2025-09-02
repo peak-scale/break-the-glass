@@ -2,5 +2,5 @@ defaultPlatforms:
 - linux/amd64
 - linux/arm64
 builds:
-- id: access-requests
+- id: break-the-glass
   main: cmd/

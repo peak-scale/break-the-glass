@@ -43,6 +43,11 @@ import (
 	"github.com/peak-scale/break-the-glass/internal/metrics"
 )
 
+const (
+	annotationKeyManagedBy   = "app.kubernetes.io/managed-by"
+	annotationValueManagedBy = "break-the-glass-controller"
+)
+
 type BreakRequestReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
@@ -352,7 +357,7 @@ func (r *BreakRequestReconciler) reconcileItems(
 				labels = map[string]string{}
 			}
 
-			labels["app.kubernetes.io/managed-by"] = "access-br-controller"
+			labels[annotationKeyManagedBy] = annotationValueManagedBy
 			obj.SetLabels(labels)
 
 			return nil

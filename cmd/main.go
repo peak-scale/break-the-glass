@@ -269,7 +269,7 @@ func main() {
 		Client:   mgr.GetClient(),
 		Log:      ctrl.Log.WithName("Controllers").WithName("BreakRequests"),
 		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("access-request-ctrl"),
+		Recorder: mgr.GetEventRecorderFor("break-the-glass-ctrl"),
 		Metrics:  *metrics.MustMakeBreakRequestsRecorder(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BreakRequests")
