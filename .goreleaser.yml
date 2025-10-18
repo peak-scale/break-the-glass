@@ -82,8 +82,8 @@ changelog:
     order: 600
   - title: '📦 Other work'
     regexp: '^chore(\([^)]*\))?:|^chore:'
-sboms:
-  - artifacts: archive
+#sboms:
+#  - artifacts: archive
 #signs:
 #- cmd: cosign
 #  args:
