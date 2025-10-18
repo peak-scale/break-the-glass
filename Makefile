@@ -168,6 +168,11 @@ ko-publish-controller: ko-login
 .PHONY: ko-publish-all
 ko-publish-all: ko-publish-controller
 
+# CLI Publish
+
+cli-test-release: goreleaser
+	$(GORELEASER) --skip=publish --snapshot --clean --parallelism 2
+
 ####################
 # -- Helm
 ####################

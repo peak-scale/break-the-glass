@@ -1,6 +1,7 @@
+version: 2
 project_name: break-glass
 env:
-  - COSIGN_EXPERIMENTAL=true
+#  - COSIGN_EXPERIMENTAL=true
   - GO111MODULE=on
 before:
   hooks:
@@ -83,11 +84,11 @@ changelog:
     regexp: '^chore(\([^)]*\))?:|^chore:'
 sboms:
   - artifacts: archive
-signs:
-- cmd: cosign
-  args:
-  - "sign-blob"
-  - "--output-signature=${signature}"
-  - "${artifact}"
-  - "--yes"
-  artifacts: all
+#signs:
+#- cmd: cosign
+#  args:
+#  - "sign-blob"
+#  - "--output-signature=${signature}"
+#  - "${artifact}"
+#  - "--yes"
+#  artifacts: all
