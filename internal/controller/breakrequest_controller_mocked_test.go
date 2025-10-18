@@ -118,7 +118,7 @@ var _ = Describe("AccessRequest Controller", func() {
 						Type:               "Approved",
 					},
 				}
-				br.Status.Approved = &bgv1.BreakRequestStatusReviewProperties{
+				br.Status.Approved = &bgv1.ApprovedProperties{
 					StartTime: v1.NewTime(time.Now().Add(time.Hour)),
 				}
 
@@ -146,10 +146,10 @@ var _ = Describe("AccessRequest Controller", func() {
 					Type:               "Approved",
 				},
 			}
-			br.Status.Approved = &bgv1.BreakRequestStatusReviewProperties{
+			br.Status.Approved = &bgv1.ApprovedProperties{
 				StartTime: v1.Now(),
 			}
-			br.Status.Template = &bgv1.BreakRequestStatusTemplateProperties{
+			br.Status.Template = &bgv1.TemplateProperties{
 				Items: items.TemplateItems{
 					templateName: {
 						ManifestTemplate: mtConfigMapParameterized,

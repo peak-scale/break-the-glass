@@ -80,7 +80,7 @@ Known conditions are "Requested", "Pending", "Denied", "Approved", "Active" and 
 The latest condition is reflected in the phase. | false |
 | **keepUntil** | string | The time when the request was created.<br/><i>Format</i>: date-time<br/> | false |
 | **phase** | enum | <br/><i>Enum</i>: Requested, Pending, Denied, Approved, Active, Expired<br/> | false |
-| **[review](#breakrequeststatusreview)** | object | Reviewer refers to the subject that either approved or denied the request | false |
+| **[review](#breakrequeststatusreview)** | object | Review refers to the subject that either approved or denied the request | false |
 | **[template](#breakrequeststatustemplate)** | object | Template properties copied from the assigned template | false |
 
 
@@ -138,12 +138,12 @@ with respect to the current state of the instance.<br/><i>Format</i>: int64<br/>
 
 
 
-Reviewer refers to the subject that either approved or denied the request
+Review refers to the subject that either approved or denied the request
 
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
 | **message** | string | Message with the review | false |
-| **[reviewer](#breakrequeststatusreviewreviewer)** | object | The Entity revieweing this request | false |
+| **[reviewer](#breakrequeststatusreviewreviewer)** | object | The Entity reviewing this request | false |
 | **verdict** | enum | The verdict made by the reviewing entity<br/><i>Enum</i>: Pending, Denied, Approved<br/> | false |
 
 
@@ -151,7 +151,7 @@ Reviewer refers to the subject that either approved or denied the request
 
 
 
-The Entity revieweing this request
+The Entity reviewing this request
 
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |

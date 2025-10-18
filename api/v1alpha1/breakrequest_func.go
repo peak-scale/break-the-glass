@@ -31,7 +31,7 @@ import (
 
 // InitializeFromTemplate Copies all relevant values from the Template
 func (br *BreakRequest) InitializeFromTemplate(brt *BreakRequestTemplate) {
-	br.Status.Template = &BreakRequestStatusTemplateProperties{
+	br.Status.Template = &TemplateProperties{
 		Items:           brt.Spec.Items,
 		DefaultDuration: brt.Spec.DefaultDuration,
 		MaxDuration:     brt.Spec.MaxDuration,
@@ -51,7 +51,7 @@ func (br *BreakRequest) SetRequested() (err error) {
 		return err
 	}
 
-	br.Status.Review = &BreakRequestStatusReview{
+	br.Status.Review = &ReviewInfo{
 		Verdict: RequestVerdictPending,
 	}
 
@@ -76,7 +76,7 @@ func (br *BreakRequest) SetPending() (err error) {
 // Approves the BreakRequest. Depending on the start time, it may also directly activate the request.
 func (br *BreakRequest) ApproveRequest(
 	entity *AccessEntity,
-	properties *BreakRequestStatusReviewProperties,
+	properties *ApprovedProperties,
 	reason string,
 ) (err error) {
 	if reason == "" {
@@ -98,7 +98,7 @@ func (br *BreakRequest) ApproveRequest(
 
 	br.Status.Approved = properties
 
-	br.Status.Review = &BreakRequestStatusReview{
+	br.Status.Review = &ReviewInfo{
 		Reviewer: entity,
 		Verdict:  RequestVerdictApproved,
 		Message:  reason,
@@ -123,7 +123,7 @@ func (br *BreakRequest) DenyRequest(entity *AccessEntity, reason string) (err er
 		return err
 	}
 
-	br.Status.Review = &BreakRequestStatusReview{
+	br.Status.Review = &ReviewInfo{
 		Reviewer: entity,
 		Verdict:  RequestVerdictDenied,
 		Message:  reason,
@@ -149,7 +149,7 @@ func (br *BreakRequest) ActiveRequest(entity *AccessEntity) (err error) {
 	controllerutil.AddFinalizer(br, meta.ControllerFinalizer)
 
 	if br.Status.Active == nil {
-		br.Status.Active = &BreakRequestStatusActive{}
+		br.Status.Active = &ActivePeriod{}
 	}
 
 	br.Status.Active.ActiveFrom = now
@@ -202,8 +202,8 @@ func (br *BreakRequest) DeleteRequest() {
 	controllerutil.RemoveFinalizer(br, meta.ControllerFinalizer)
 }
 
-// GetReviewProperties Get the Properties which are relevant for Review
-func (br *BreakRequest) GetReviewProperties() (*BreakRequestStatusReviewProperties, error) {
+// GenerateApprovedProperties Get the Properties which are relevant for Review and approval
+func (br *BreakRequest) GenerateApprovedProperties() (*ApprovedProperties, error) {
 	it, err := br.RenderItemsItems(br.Status.Template.Items)
 	if err != nil {
 		return nil, err
@@ -214,7 +214,7 @@ func (br *BreakRequest) GetReviewProperties() (*BreakRequestStatusReviewProperti
 		keep = tpl.KeepFor
 	}
 
-	return &BreakRequestStatusReviewProperties{
+	return &ApprovedProperties{
 		Duration:  br.Spec.Duration,
 		StartTime: metav1.Now(),
 		Items:     it,
@@ -316,7 +316,7 @@ func setReviewer(
 	verdict RequestVerdict,
 ) {
 	if entity != nil {
-		ar.Status.Review = &BreakRequestStatusReview{
+		ar.Status.Review = &ReviewInfo{
 			Reviewer: entity,
 			Message:  conditionMessage,
 			Verdict:  verdict,

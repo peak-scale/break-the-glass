@@ -195,7 +195,7 @@ func (r *BreakRequestReconciler) reconcile(
 		br.InitializeFromTemplate(brt)
 
 		if ok, err := conditions.IsApproved(brt, br); ok {
-			props, err := br.GetReviewProperties()
+			props, err := br.GenerateApprovedProperties()
 			if err != nil {
 				return ctrl.Result{}, err
 			}

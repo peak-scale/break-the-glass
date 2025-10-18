@@ -26,7 +26,7 @@ import (
 
 func printAccessRequestApprovalTable(
 	br *v1alpha1.BreakRequest,
-	brp *v1alpha1.BreakRequestStatusReviewProperties,
+	app *v1alpha1.ApprovedProperties,
 	color bool,
 ) {
 	t := table.NewWriter()
@@ -35,13 +35,13 @@ func printAccessRequestApprovalTable(
 	t.Style().Title.Align = text.AlignCenter
 
 	durStr := "Unlimited"
-	if brp.Duration.Duration != 0 {
-		durStr = brp.Duration.Duration.String()
+	if app.Duration.Duration != 0 {
+		durStr = app.Duration.Duration.String()
 	}
 
 	keepStr := "Undefined"
-	if brp.KeepFor != 0 {
-		keepStr = brp.KeepFor.String()
+	if app.KeepFor != 0 {
+		keepStr = app.KeepFor.String()
 	}
 
 	duration := br.Spec.Duration.Duration
@@ -59,7 +59,7 @@ func printAccessRequestApprovalTable(
 	})
 
 	// Example: printing .status.items nicely as YAML
-	for name, item := range brp.Items {
+	for name, item := range app.Items {
 		content := prettyRawExtension(item)
 		if color {
 			content = colorizeYAML(content)

@@ -27,10 +27,8 @@ type BreakRequestSpec struct {
 	// TemplateName the name of the template to use for this request
 	// +kubebuilder:validation:Required
 	TemplateName string `json:"templateName"`
-
 	// Params the parameters to use for the template.
 	Params items.TemplateParams `json:"params,omitempty"`
-
 	// Requesting actor for the access request.
 	Requestor AccessEntity `json:"requestor,omitempty"`
 	// A reason on why the request is needed
@@ -50,14 +48,14 @@ type BreakRequestSpec struct {
 
 // BreakRequestStatus defines the observed state of BreakRequest.
 type BreakRequestStatus struct {
-	// Reviewer refers to the subject that either approved or denied the request
-	Review *BreakRequestStatusReview `json:"review,omitempty"`
+	// Review refers to the subject that either approved or denied the request
+	Review *ReviewInfo `json:"review,omitempty"`
 	// Template properties copied from the assigned template
-	Template *BreakRequestStatusTemplateProperties `json:"template,omitempty"`
+	Template *TemplateProperties `json:"template,omitempty"`
 	// The Approved properties are set when the request is approved.
-	Approved *BreakRequestStatusReviewProperties `json:"approved,omitempty"`
+	Approved *ApprovedProperties `json:"approved,omitempty"`
 	// Shows timestamps between approval and termination of the request.
-	Active *BreakRequestStatusActive `json:"active,omitempty"`
+	Active *ActivePeriod `json:"active,omitempty"`
 	// The time when the request was created.
 	KeepUntil metav1.Time `json:"keepUntil,omitempty"`
 	// Conditions applied to the request.
@@ -68,13 +66,14 @@ type BreakRequestStatus struct {
 	Phase RequestPhase `json:"phase,omitempty"`
 }
 
-type BreakRequestStatusActive struct {
+// ActivePeriod represents the time window when a request is active
+type ActivePeriod struct {
 	ActiveFrom  metav1.Time `json:"from,omitempty"`
 	ActiveUntil metav1.Time `json:"until,omitempty"`
 }
 
-// BreakRequestStatusTemplateProperties These are the relevant properties which are subject to review and then persistet
-type BreakRequestStatusTemplateProperties struct {
+// TemplateProperties contains properties copied from the assigned template
+type TemplateProperties struct {
 	// The items that are created by this request, provided by the template.
 	Items items.TemplateItems `json:"templateItems,omitempty"`
 	// The default duration of the BreakRequest referencing this template should be valid for.
@@ -87,16 +86,17 @@ type BreakRequestStatusTemplateProperties struct {
 	KeepFor api.ExtendedDuration `json:"keepFor,omitempty"`
 }
 
-// BreakRequestStatusReviewProperties These are the relevant properties which are subject to review and then persistet
-type BreakRequestStatusReviewProperties struct {
+// ApprovedProperties contains the properties set when a request is approved
+type ApprovedProperties struct {
 	KeepFor   api.ExtendedDuration `json:"keepFor,omitempty"`
 	Duration  metav1.Duration      `json:"duration,omitempty"`
 	StartTime metav1.Time          `json:"startTime,omitempty"`
 	Items     items.Items          `json:"items,omitempty"`
 }
 
-type BreakRequestStatusReview struct {
-	// The Entity revieweing this request
+// ReviewInfo contains information about the review of a request
+type ReviewInfo struct {
+	// The Entity reviewing this request
 	Reviewer *AccessEntity `json:"reviewer,omitempty"`
 	// The verdict made by the reviewing entity
 	// +kubebuilder:validation:Enum=Pending;Denied;Approved
@@ -137,9 +137,8 @@ const (
 type BreakRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec   BreakRequestSpec   `json:"spec,omitempty"`
-	Status BreakRequestStatus `json:"status,omitempty"`
+	Spec              BreakRequestSpec   `json:"spec,omitempty"`
+	Status            BreakRequestStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

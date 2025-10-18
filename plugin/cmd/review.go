@@ -66,7 +66,7 @@ var reviewCmd = &cobra.Command{
 				br.Status.Phase,
 			)
 		}
-		props, err := br.GetReviewProperties()
+		props, err := br.GenerateApprovedProperties()
 		if err != nil {
 			return err
 		}

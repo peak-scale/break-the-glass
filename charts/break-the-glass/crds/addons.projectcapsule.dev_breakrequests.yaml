@@ -210,14 +210,14 @@ spec:
                 - Expired
                 type: string
               review:
-                description: Reviewer refers to the subject that either approved or
+                description: Review refers to the subject that either approved or
                   denied the request
                 properties:
                   message:
                     description: Message with the review
                     type: string
                   reviewer:
-                    description: The Entity revieweing this request
+                    description: The Entity reviewing this request
                     properties:
                       name:
                         description: The name of the entity
