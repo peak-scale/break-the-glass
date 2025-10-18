@@ -1,6 +1,6 @@
 module github.com/peak-scale/break-the-glass
 
-go 1.25.0
+go 1.25.2
 
 require (
 	github.com/alecthomas/chroma/v2 v2.20.0
