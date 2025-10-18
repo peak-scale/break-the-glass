@@ -22,7 +22,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/peak-scale/break-the-glass/internal/version"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -30,6 +29,7 @@ import (
 	addonsv1alpha1 "github.com/peak-scale/break-the-glass/api/v1alpha1"
 	"github.com/peak-scale/break-the-glass/internal/controller"
 	"github.com/peak-scale/break-the-glass/internal/metrics"
+	"github.com/peak-scale/break-the-glass/internal/version"
 	webhookv1alpha1 "github.com/peak-scale/break-the-glass/internal/webhook/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
