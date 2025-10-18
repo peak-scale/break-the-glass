@@ -10,7 +10,7 @@ gomod:
   proxy: false
 
 builds:
-  - main: ./cmd
+  - main: ./plugin
     binary: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
     env:
       - CGO_ENABLED=0
