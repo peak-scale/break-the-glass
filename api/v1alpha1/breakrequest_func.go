@@ -55,7 +55,7 @@ func (br *BreakRequest) SetRequested() (err error) {
 		Verdict: RequestVerdictPending,
 	}
 
-	return
+	return err
 }
 
 // Sets Requests to pending
@@ -70,7 +70,7 @@ func (br *BreakRequest) SetPending() (err error) {
 		return err
 	}
 
-	return
+	return err
 }
 
 // Approves the BreakRequest. Depending on the start time, it may also directly activate the request.
@@ -129,7 +129,7 @@ func (br *BreakRequest) DenyRequest(entity *AccessEntity, reason string) (err er
 		Message:  reason,
 	}
 
-	return
+	return err
 }
 
 // ActiveRequest Activates the BreakRequest, allowing the subject to access the requested resources.
@@ -194,7 +194,7 @@ func (br *BreakRequest) ExpireRequest(entity *AccessEntity) (err error) {
 		return err
 	}
 
-	return
+	return err
 }
 
 // DeleteRequest Final stage, delete the request

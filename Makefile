@@ -376,7 +376,7 @@ setup-envtest: envtest ## Download the binaries required for ENVTEST in the loca
 	}
 
 GOLANGCI_LINT          := $(LOCALBIN)/golangci-lint
-GOLANGCI_LINT_VERSION  := 2.4.0
+GOLANGCI_LINT_VERSION  := 2.5.0
 GOLANGCI_LINT_LOOKUP   := golangci/golangci-lint
 golangci-lint: ## Download golangci-lint locally if necessary.
 		test -s $(GOLANGCI_LINT) && $(GOLANGCI_LINT) --version | grep -q $(GOLANGCI_LINT_VERSION) ||  \
