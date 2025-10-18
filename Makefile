@@ -170,8 +170,8 @@ ko-publish-all: ko-publish-controller
 
 # CLI Publish
 
-cli-test-release: goreleaser
-	$(GORELEASER) --skip=publish --snapshot --clean --parallelism 2
+cli-test-release: goreleaser syft
+	PATH=$(LOCALBIN):$${PATH} $(GORELEASER) --skip=publish --snapshot --clean --parallelism 2
 
 ####################
 # -- Helm
@@ -403,6 +403,13 @@ GORELEASER_LOOKUP   := goreleaser/goreleaser
 goreleaser: ## Download goreleaser locally if necessary.
 		test -s $(GORELEASER) && $(GORELEASER) --version | grep -q $(GORELEASER_VERSION) ||  \
 	$(call go-install-tool,$(GORELEASER),github.com/$(GORELEASER_LOOKUP)/v2@v$(GORELEASER_VERSION))
+
+SYFT          := $(LOCALBIN)/syft
+SYFT_VERSION  := 1.34.2
+SYFT_LOOKUP   := anchore/syft
+syft: ## Download syft locally if necessary.
+		test -s $(SYFT) && $(SYFT) --version | grep -q $(SYFT_VERSION) ||  \
+	$(call go-install-tool,$(SYFT),github.com/$(SYFT_LOOKUP)/cmd/syft@v$(SYFT_VERSION))
 
 # go-install-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
