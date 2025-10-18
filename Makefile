@@ -135,13 +135,9 @@ ifdef VERSION
 KO_TAGS         := $(KO_TAGS),$(VERSION)
 endif
 
-LD_FLAGS        := "-X main.Version=$(VERSION) \
-					-X main.GitCommit=$(GIT_HEAD_COMMIT) \
-					-X main.GitTag=$(VERSION) \
-					-X main.GitTreeState=$(GIT_MODIFIED) \
-					-X main.BuildDate=$(BUILD_DATE) \
-					-X main.GitRepo=$(GIT_REPO)"
-
+LD_FLAGS        := "-X github.com/peak-scale/break-the-glass/internal/version.Version=$(VERSION) \
+					-X github.com/peak-scale/break-the-glass/internal/version.GitCommit=$(GIT_HEAD_COMMIT) \
+					-X ithub.com/peak-scale/break-the-glass/internal/version.BuildDate=$(BUILD_DATE)"
 # Docker Image Build
 # ------------------
 .PHONY: ko-build-controller
@@ -171,6 +167,11 @@ ko-publish-controller: ko-login
 
 .PHONY: ko-publish-all
 ko-publish-all: ko-publish-controller
+
+# CLI Publish
+
+cli-test-release: goreleaser syft
+	PATH=$(LOCALBIN):$${PATH} $(GORELEASER) --skip=publish --snapshot --clean --parallelism 2
 
 ####################
 # -- Helm
@@ -389,13 +390,26 @@ apidocs-gen: ## Download crdoc locally if necessary.
 	@test -s $(APIDOCS_GEN) && $(APIDOCS_GEN) --version | grep -q $(APIDOCS_GEN_VERSION) || \
 	$(call go-install-tool,$(APIDOCS_GEN),fybrik.io/crdoc@$(APIDOCS_GEN_VERSION))
 
-
 MOCKGEN         := $(LOCALBIN)/mockgen
 MOCKGEN_VERSION := v0.6.0
 MOCKGEN_LOOKUP  := go.uber.org/mock/mockgen
 mockgen:
 	@test -s $(MOCKGEN) && $(MOCKGEN) -version | grep -q $(MOCKGEN_VERSION) || \
 	$(call go-install-tool,$(MOCKGEN),$(MOCKGEN_LOOKUP)@$(MOCKGEN_VERSION))
+
+GORELEASER          := $(LOCALBIN)/goreleaser
+GORELEASER_VERSION  := 2.12.5
+GORELEASER_LOOKUP   := goreleaser/goreleaser
+goreleaser: ## Download goreleaser locally if necessary.
+		test -s $(GORELEASER) && $(GORELEASER) --version | grep -q $(GORELEASER_VERSION) ||  \
+	$(call go-install-tool,$(GORELEASER),github.com/$(GORELEASER_LOOKUP)/v2@v$(GORELEASER_VERSION))
+
+SYFT          := $(LOCALBIN)/syft
+SYFT_VERSION  := 1.34.2
+SYFT_LOOKUP   := anchore/syft
+syft: ## Download syft locally if necessary.
+		test -s $(SYFT) && $(SYFT) --version | grep -q $(SYFT_VERSION) ||  \
+	$(call go-install-tool,$(SYFT),github.com/$(SYFT_LOOKUP)/cmd/syft@v$(SYFT_VERSION))
 
 # go-install-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))

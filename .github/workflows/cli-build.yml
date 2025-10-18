@@ -1,5 +1,5 @@
-name: Lint
-
+name: Build cli
+permissions: {}
 on:
   push:
     branches:
@@ -9,23 +9,23 @@ on:
     branches:
       - main
       - init
+  release:
+    types:
+      - published
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  lint:
-    name: Run on Ubuntu
+  test-cli:
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
     steps:
-      - name: Clone the code
+      - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: "go.mod"
-
-      - name: Run linter
-        run: make lint
+      - name: goreleaser test
+        run: make cli-test-release

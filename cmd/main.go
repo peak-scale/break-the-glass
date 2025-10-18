@@ -29,6 +29,7 @@ import (
 	addonsv1alpha1 "github.com/peak-scale/break-the-glass/api/v1alpha1"
 	"github.com/peak-scale/break-the-glass/internal/controller"
 	"github.com/peak-scale/break-the-glass/internal/metrics"
+	"github.com/peak-scale/break-the-glass/internal/version"
 	webhookv1alpha1 "github.com/peak-scale/break-the-glass/internal/webhook/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -136,6 +137,12 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	setupLog.WithValues(
+		"version", version.Version,
+		"revision", version.GitCommit,
+		"build-date", version.BuildDate,
+	).Info("starting break-the-glass controller")
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will

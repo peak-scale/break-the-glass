@@ -10,6 +10,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/peak-scale/break-the-glass/api/v1alpha1"
+	"github.com/peak-scale/break-the-glass/internal/version"
 )
 
 var (
@@ -18,8 +19,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "break",
-	Short: "Manage BreakRequests",
+	Use:     "break",
+	Short:   "Manage BreakRequests",
+	Version: version.Version,
 }
 
 var scheme = runtime.NewScheme()
