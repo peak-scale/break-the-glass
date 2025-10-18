@@ -8,6 +8,10 @@ on:
     branches-ignore:  # FIXME enable if e2e is ready
       - '**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-e2e:
     name: Run on Ubuntu
