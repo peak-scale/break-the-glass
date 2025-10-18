@@ -23,9 +23,9 @@ builds:
     mod_timestamp: '{{ .CommitTimestamp }}'
     ldflags:
       - >-
-        -X github.com/peak-scale/{{ .ProjectName }}/cmd.Version={{ .Tag }}
-        -X github.com/peak-scale/{{ .ProjectName }}/cmd.GitCommit={{ .Commit }}
-        -X github.com/peak-scale/{{ .ProjectName }}/cmd.BuildDate={{ .Date }}
+        -X github.com/peak-scale/{{ .ProjectName }}/internal/version.Version={{ .Tag }}
+        -X github.com/peak-scale/{{ .ProjectName }}/internal/version.GitCommit={{ .Commit }}
+        -X github.com/peak-scale/{{ .ProjectName }}/internal/version.BuildDate={{ .Date }}
 release:
   footer: |
     **Full Changelog**: https://github.com/peak-scale/{{ .ProjectName }}/compare/{{ .PreviousTag }}...{{ .Tag }}

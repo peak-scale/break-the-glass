@@ -140,7 +140,8 @@ func main() {
 
 	setupLog.WithValues(
 		"version", version.Version,
-		"build", version.Build,
+		"revision", version.GitCommit,
+		"build-date", version.BuildDate,
 	).Info("starting break-the-glass controller")
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
