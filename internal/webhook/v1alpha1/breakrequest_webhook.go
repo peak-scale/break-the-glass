@@ -80,7 +80,7 @@ func (v *BreakRequestCustomValidator) ValidateCreate(
 			br.Spec.Duration.Duration, brt.Spec.MaxDuration.Duration)
 	}
 
-	_, err = brt.RenderItemsItems(br)
+	_, err = br.RenderItemsItems(brt.Spec.Items)
 	return nil, err
 }
 

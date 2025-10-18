@@ -42,8 +42,8 @@ BreakRequestSpec defines the desired state of BreakRequest.
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
 | **templateName** | string | TemplateName the name of the template to use for this request | true |
-| **duration** | string | The duration this BreakRequest should be valid for.
-If no duration was defined the lifecycle is bound to the request itself -
+| **duration** | string | The duration of this BreakRequest should be valid for.
+If no duration was defined, the lifecycle is bound to the request itself -
 if the request is deleted, it's the end of the duration.
 The Request can also be Terminated by another automation via calling the ExpireRequest() API-Function. | false |
 | **params** | map[string]object | Params the parameters to use for the template. | false |
@@ -73,23 +73,22 @@ BreakRequestStatus defines the observed state of BreakRequest.
 
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
-| **[active](#breakrequeststatusactive)** | object | Shows timestamps beetwen approval and termination of the request. | false |
+| **[active](#breakrequeststatusactive)** | object | Shows timestamps between approval and termination of the request. | false |
 | **[approved](#breakrequeststatusapproved)** | object | The Approved properties are set when the request is approved. | false |
-| **[conditions](#breakrequeststatusconditionsindex)** | []object | conditions applied to the request.
+| **[conditions](#breakrequeststatusconditionsindex)** | []object | Conditions applied to the request.
 Known conditions are "Requested", "Pending", "Denied", "Approved", "Active" and "Expired".
-Latests condition is reflected in the phase. | false |
-| **keepFor** | string | The duration this BreakRequest will be kept in the system after it has been expired (eg. auditing purposes)
-If not set, the BreakRequest will be deleted after expiring. | false |
+The latest condition is reflected in the phase. | false |
 | **keepUntil** | string | The time when the request was created.<br/><i>Format</i>: date-time<br/> | false |
 | **phase** | enum | <br/><i>Enum</i>: Requested, Pending, Denied, Approved, Active, Expired<br/> | false |
 | **[review](#breakrequeststatusreview)** | object | Reviewer refers to the subject that either approved or denied the request | false |
+| **[template](#breakrequeststatustemplate)** | object | Template properties copied from the assigned template | false |
 
 
 ### BreakRequest.status.active
 
 
 
-Shows timestamps beetwen approval and termination of the request.
+Shows timestamps between approval and termination of the request.
 
 | **Name** | **Type** | **Description** | **Required** |
 | :---- | :---- | :----------- | :-------- |
@@ -158,6 +157,33 @@ The Entity revieweing this request
 | :---- | :---- | :----------- | :-------- |
 | **name** | string | The name of the entity | false |
 | **type** | enum | The type of the entity<br/><i>Enum</i>: User, Group, System<br/> | false |
+
+
+### BreakRequest.status.template
+
+
+
+Template properties copied from the assigned template
+
+| **Name** | **Type** | **Description** | **Required** |
+| :---- | :---- | :----------- | :-------- |
+| **defaultDuration** | string | The default duration of the BreakRequest referencing this template should be valid for. | true |
+| **keepFor** | string | The duration of this BreakRequest will be kept in the system after it has been expired (eg. auditing purposes)
+If not set, the BreakRequest will be deleted after expiring. | false |
+| **maxDuration** | string | The max allowed duration of the BreakRequest referencing this template should be valid for. | false |
+| **[templateItems](#breakrequeststatustemplatetemplateitemskey)** | map[string]object | The items that are created by this request, provided by the template. | false |
+
+
+### BreakRequest.status.template.templateItems[key]
+
+
+
+TemplateItem
+
+| **Name** | **Type** | **Description** | **Required** |
+| :---- | :---- | :----------- | :-------- |
+| **manifestTemplate** | object |  | true |
+| **paramSchema** | object |  | false |
 
 ## BreakRequestTemplate
 

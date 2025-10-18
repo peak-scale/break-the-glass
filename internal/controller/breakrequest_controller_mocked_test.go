@@ -149,18 +149,17 @@ var _ = Describe("AccessRequest Controller", func() {
 			br.Status.Approved = &bgv1.BreakRequestStatusReviewProperties{
 				StartTime: v1.Now(),
 			}
+			br.Status.Template = &bgv1.BreakRequestStatusTemplateProperties{
+				Items: items.TemplateItems{
+					templateName: {
+						ManifestTemplate: mtConfigMapParameterized,
+						ParamSchema:      psString,
+					},
+				},
+			}
 
 			cl.EXPECT().Get(gm.Any(), gm.Any(), matchBr)
 			cl.EXPECT().Get(gm.Any(), gm.Any(), matchUs)
-			cl.EXPECT().Get(gm.Any(), gm.Any(), matchBrt).
-				Do(func(_ context.Context, _ rc.ObjectKey, brt *bgv1.BreakRequestTemplate, _ ...rc.GetOption) {
-					brt.Spec.Items = items.TemplateItems{
-						templateName: {
-							ManifestTemplate: mtConfigMapParameterized,
-							ParamSchema:      psString,
-						},
-					}
-				})
 
 			cl.EXPECT().Update(gm.Any(), matchUs, gm.Any())
 			scl.EXPECT().Update(gm.Any(), matchBr, gm.Any())

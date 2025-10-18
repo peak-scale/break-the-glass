@@ -16,7 +16,7 @@ var expireCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name = args[0]
 		return runBreakRequestAction(
-			func(br *v1alpha1.BreakRequest, _ *v1alpha1.BreakRequestTemplate, user *v1alpha1.AccessEntity) error {
+			func(br *v1alpha1.BreakRequest, user *v1alpha1.AccessEntity) error {
 				return br.ExpireRequest(user)
 			},
 		)

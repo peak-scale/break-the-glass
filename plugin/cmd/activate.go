@@ -19,10 +19,9 @@ var activateCmd = &cobra.Command{
 		return runBreakRequestAction(
 			func(
 				br *v1alpha1.BreakRequest,
-				brt *v1alpha1.BreakRequestTemplate,
 				user *v1alpha1.AccessEntity,
 			) error {
-				return br.ActiveRequest(brt, user)
+				return br.ActiveRequest(user)
 			},
 		)
 	},

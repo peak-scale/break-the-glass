@@ -26,7 +26,6 @@ import (
 
 func printAccessRequestApprovalTable(
 	br *v1alpha1.BreakRequest,
-	brt *v1alpha1.BreakRequestTemplate,
 	brp *v1alpha1.BreakRequestStatusReviewProperties,
 	color bool,
 ) {
@@ -47,7 +46,7 @@ func printAccessRequestApprovalTable(
 
 	duration := br.Spec.Duration.Duration
 	if duration == 0 {
-		duration = brt.Spec.DefaultDuration.Duration
+		duration = br.Status.Template.DefaultDuration.Duration
 	}
 
 	t.AppendHeader(table.Row{"Field", "Value"})
@@ -122,7 +121,7 @@ func colorize(src string, it chroma.Iterator) string {
 	if style == nil {
 		style = styles.Fallback
 	}
-	// Use terminal16m for truecolor; fall back to standard terminal if not supported.
+	// Use terminal16m for truecolor; fall back to the standard terminal if not supported.
 	formatter := formatters.Get("terminal16m")
 	if formatter == nil {
 		formatter = formatters.Fallback
@@ -145,7 +144,7 @@ func newK8sClient() (*rest.Config, ctrlclient.Client, error) {
 }
 
 func runBreakRequestAction(
-	action func(br *v1alpha1.BreakRequest, brt *v1alpha1.BreakRequestTemplate, user *v1alpha1.AccessEntity) error,
+	action func(br *v1alpha1.BreakRequest, user *v1alpha1.AccessEntity) error,
 ) error {
 	ctx := context.Background()
 	cfg, k8sClient, err := newK8sClient()
@@ -173,7 +172,7 @@ func runBreakRequestAction(
 				return err
 			}
 
-			if err := action(br, brt, user); err != nil {
+			if err := action(br, user); err != nil {
 				return err
 			}
 			return k8sClient.Status().Update(ctx, br)

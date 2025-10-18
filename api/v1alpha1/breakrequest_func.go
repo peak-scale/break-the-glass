@@ -17,15 +17,29 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/peak-scale/break-the-glass/api"
+	"github.com/peak-scale/break-the-glass/internal/items"
 	"github.com/peak-scale/break-the-glass/internal/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-// Sets Requests to pending
+// InitializeFromTemplate Copies all relevant values from the Template
+func (br *BreakRequest) InitializeFromTemplate(brt *BreakRequestTemplate) {
+	br.Status.Template = &BreakRequestStatusTemplateProperties{
+		Items:           brt.Spec.Items,
+		DefaultDuration: brt.Spec.DefaultDuration,
+		MaxDuration:     brt.Spec.MaxDuration,
+		KeepFor:         brt.Spec.KeepFor,
+	}
+}
+
+// SetRequested Sets Requests to pending
 func (br *BreakRequest) SetRequested() (err error) {
 	if err := br.transitionRequestPhase(
 		RequestPhaseRequested,
@@ -93,7 +107,7 @@ func (br *BreakRequest) ApproveRequest(
 	return err
 }
 
-// Denies the BreakRequest. It may directly transition to the Denied phase or set a reason for denial.
+// DenyRequest Denies the BreakRequest. It may directly transition to the Denied phase or set a reason for denial.
 func (br *BreakRequest) DenyRequest(entity *AccessEntity, reason string) (err error) {
 	if reason == "" {
 		reason = "Access request denied"
@@ -118,8 +132,8 @@ func (br *BreakRequest) DenyRequest(entity *AccessEntity, reason string) (err er
 	return
 }
 
-// Activates the BreakRequest, allowing the subject to access the requested resources.
-func (br *BreakRequest) ActiveRequest(brt *BreakRequestTemplate, entity *AccessEntity) (err error) {
+// ActiveRequest Activates the BreakRequest, allowing the subject to access the requested resources.
+func (br *BreakRequest) ActiveRequest(entity *AccessEntity) (err error) {
 	now := metav1.Now()
 
 	if err := br.transitionRequestPhase(
@@ -140,30 +154,35 @@ func (br *BreakRequest) ActiveRequest(brt *BreakRequestTemplate, entity *AccessE
 
 	br.Status.Active.ActiveFrom = now
 
-	if brt.Spec.MaxDuration.Duration > 0 &&
-		br.Spec.Duration.Duration > brt.Spec.MaxDuration.Duration {
+	tpl := br.Status.Template
+	if tpl == nil {
+		return fmt.Errorf("template not set")
+	}
+
+	if br.Status.Template.MaxDuration.Duration > 0 &&
+		br.Spec.Duration.Duration > tpl.MaxDuration.Duration {
 		return fmt.Errorf("requested duration %s exceeds template maxDuration %s",
-			br.Spec.Duration.Duration, brt.Spec.MaxDuration.Duration)
+			br.Spec.Duration.Duration, tpl.MaxDuration.Duration)
 	}
 
 	duration := br.Spec.Duration.Duration
 	if duration == 0 {
-		duration = brt.Spec.DefaultDuration.Duration
+		duration = tpl.DefaultDuration.Duration
 	}
 
 	// If a duration was set, otherwise the lifecycle must be canceled manually
 	activeUntil := now.Add(duration)
 	br.Status.Active.ActiveUntil = metav1.NewTime(activeUntil)
 
-	if br.Status.KeepFor > 0 {
-		br.Status.KeepUntil = metav1.NewTime(activeUntil.Add(time.Duration(br.Status.KeepFor)))
+	if tpl.KeepFor > 0 {
+		br.Status.KeepUntil = metav1.NewTime(activeUntil.Add(time.Duration(tpl.KeepFor)))
 	}
 
 	return nil
 }
 
-// When a request is active, it can be expired. This indicates that the granted access is revoked
-// however this Request itself may be present longer, for auditing purposes
+// ExpireRequest When a request is active, it can be expired. This indicates that the granted access is revoked, however,
+// this Request itself may be present longer, for auditing purposes
 func (br *BreakRequest) ExpireRequest(entity *AccessEntity) (err error) {
 	if err := br.transitionRequestPhase(
 		RequestPhaseExpired,
@@ -178,26 +197,51 @@ func (br *BreakRequest) ExpireRequest(entity *AccessEntity) (err error) {
 	return
 }
 
-// Final stage, delete the request
+// DeleteRequest Final stage, delete the request
 func (br *BreakRequest) DeleteRequest() {
 	controllerutil.RemoveFinalizer(br, meta.ControllerFinalizer)
 }
 
-// Get the Properties which are relevant for Review
-func (br *BreakRequest) GetReviewProperties(
-	brt *BreakRequestTemplate,
-) (*BreakRequestStatusReviewProperties, error) {
-	it, err := brt.RenderItemsItems(br)
+// GetReviewProperties Get the Properties which are relevant for Review
+func (br *BreakRequest) GetReviewProperties() (*BreakRequestStatusReviewProperties, error) {
+	it, err := br.RenderItemsItems(br.Status.Template.Items)
 	if err != nil {
 		return nil, err
+	}
+
+	var keep api.ExtendedDuration
+	if tpl := br.Status.Template; tpl != nil {
+		keep = tpl.KeepFor
 	}
 
 	return &BreakRequestStatusReviewProperties{
 		Duration:  br.Spec.Duration,
 		StartTime: metav1.Now(),
 		Items:     it,
-		KeepFor:   brt.Spec.KeepFor,
+		KeepFor:   keep,
 	}, nil
+}
+
+func (br *BreakRequest) RenderItemsItems(ti items.TemplateItems) (items.Items, error) {
+	params := br.Spec.Params
+	if params == nil {
+		params = items.TemplateParams{}
+	}
+	rendered := make(items.Items, len(ti))
+
+	var rerr error
+	for name, i := range ti {
+		var p []byte
+		if ip, ok := params[name]; ok {
+			p = ip.Raw
+		}
+		r, err := items.RenderTemplate(i.ManifestTemplate.Raw, p)
+		if err != nil {
+			rerr = errors.Join(rerr, fmt.Errorf("error rendering template item %s: %w", name, err))
+		}
+		rendered[name] = &runtime.RawExtension{Raw: r}
+	}
+	return rendered, rerr
 }
 
 // Ensure Phases are valid transitions and handle conditions accordingly

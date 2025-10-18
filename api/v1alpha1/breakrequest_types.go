@@ -35,8 +35,8 @@ type BreakRequestSpec struct {
 	Requestor AccessEntity `json:"requestor,omitempty"`
 	// A reason on why the request is needed
 	Reason string `json:"reason,omitempty"`
-	// The duration this BreakRequest should be valid for.
-	// If no duration was defined the lifecycle is bound to the request itself -
+	// The duration of this BreakRequest should be valid for.
+	// If no duration was defined, the lifecycle is bound to the request itself -
 	// if the request is deleted, it's the end of the duration.
 	// The Request can also be Terminated by another automation via calling the ExpireRequest() API-Function.
 	Duration metav1.Duration `json:"duration,omitempty"`
@@ -52,18 +52,17 @@ type BreakRequestSpec struct {
 type BreakRequestStatus struct {
 	// Reviewer refers to the subject that either approved or denied the request
 	Review *BreakRequestStatusReview `json:"review,omitempty"`
+	// Template properties copied from the assigned template
+	Template *BreakRequestStatusTemplateProperties `json:"template,omitempty"`
 	// The Approved properties are set when the request is approved.
 	Approved *BreakRequestStatusReviewProperties `json:"approved,omitempty"`
-	// Shows timestamps beetwen approval and termination of the request.
+	// Shows timestamps between approval and termination of the request.
 	Active *BreakRequestStatusActive `json:"active,omitempty"`
-	// The duration this BreakRequest will be kept in the system after it has been expired (eg. auditing purposes)
-	// If not set, the BreakRequest will be deleted after expiring.
-	KeepFor api.ExtendedDuration `json:"keepFor,omitempty"`
 	// The time when the request was created.
 	KeepUntil metav1.Time `json:"keepUntil,omitempty"`
-	// conditions applied to the request.
+	// Conditions applied to the request.
 	// Known conditions are "Requested", "Pending", "Denied", "Approved", "Active" and "Expired".
-	// Latests condition is reflected in the phase.
+	// The latest condition is reflected in the phase.
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// +kubebuilder:validation:Enum=Requested;Pending;Denied;Approved;Active;Expired
 	Phase RequestPhase `json:"phase,omitempty"`
@@ -74,7 +73,21 @@ type BreakRequestStatusActive struct {
 	ActiveUntil metav1.Time `json:"until,omitempty"`
 }
 
-// These are the relevant properties which are subject to review and then persistet
+// BreakRequestStatusTemplateProperties These are the relevant properties which are subject to review and then persistet
+type BreakRequestStatusTemplateProperties struct {
+	// The items that are created by this request, provided by the template.
+	Items items.TemplateItems `json:"templateItems,omitempty"`
+	// The default duration of the BreakRequest referencing this template should be valid for.
+	// +kubebuilder:validation:Required
+	DefaultDuration metav1.Duration `json:"defaultDuration,omitempty"`
+	// The max allowed duration of the BreakRequest referencing this template should be valid for.
+	MaxDuration metav1.Duration `json:"maxDuration,omitempty"`
+	// The duration of this BreakRequest will be kept in the system after it has been expired (eg. auditing purposes)
+	// If not set, the BreakRequest will be deleted after expiring.
+	KeepFor api.ExtendedDuration `json:"keepFor,omitempty"`
+}
+
+// BreakRequestStatusReviewProperties These are the relevant properties which are subject to review and then persistet
 type BreakRequestStatusReviewProperties struct {
 	KeepFor   api.ExtendedDuration `json:"keepFor,omitempty"`
 	Duration  metav1.Duration      `json:"duration,omitempty"`

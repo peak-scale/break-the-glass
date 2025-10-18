@@ -64,8 +64,7 @@ func (r *BreakRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.4/pkg/reconcile
+// Reconcile the request
 func (r *BreakRequestReconciler) Reconcile(
 	ctx context.Context,
 	req ctrl.Request,
@@ -116,17 +115,8 @@ func (r *BreakRequestReconciler) reconcile(
 			time.Until(br.Status.Approved.StartTime.Time) <= 0 {
 			log.V(5).Info("BreakRequest is approved, activating br")
 
-			brt := &addonsv1alpha1.BreakRequestTemplate{}
-			if err := r.Get(ctx, client.ObjectKey{Name: br.Spec.TemplateName}, brt); err != nil {
-				return ctrl.Result{}, fmt.Errorf(
-					"failed to get BreakRequest Template %s: %w",
-					br.Spec.TemplateName,
-					err,
-				)
-			}
-
 			// Transition to Active Phase
-			if err := r.transitionRequestActivation(ctx, br, brt); err != nil {
+			if err := r.transitionRequestActivation(ctx, br); err != nil {
 				return ctrl.Result{}, fmt.Errorf(
 					"failed to activate BreakRequest %s: %w",
 					br.Name,
@@ -201,10 +191,11 @@ func (r *BreakRequestReconciler) reconcile(
 				err,
 			)
 		}
-		// TODO initialize br with all requirements from brt
+		// initialize br with all requirements from brt
+		br.InitializeFromTemplate(brt)
 
 		if ok, err := conditions.IsApproved(brt, br); ok {
-			props, err := br.GetReviewProperties(brt)
+			props, err := br.GetReviewProperties()
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -303,14 +294,13 @@ func (r *BreakRequestReconciler) addFinalizer(
 func (r *BreakRequestReconciler) transitionRequestActivation(
 	ctx context.Context,
 	br *addonsv1alpha1.BreakRequest,
-	brt *addonsv1alpha1.BreakRequestTemplate,
 ) error {
-	if err := br.ActiveRequest(brt, nil); err != nil {
+	if err := br.ActiveRequest(nil); err != nil {
 		return err
 	}
 
 	// Reflect Binding
-	if err := r.reconcileItems(ctx, br, brt); err != nil {
+	if err := r.reconcileItems(ctx, br); err != nil {
 		return fmt.Errorf("failed to create AccessRequest items %s: %w", br.Name, err)
 	}
 
@@ -321,13 +311,17 @@ func (r *BreakRequestReconciler) transitionRequestActivation(
 func (r *BreakRequestReconciler) reconcileItems(
 	ctx context.Context,
 	br *addonsv1alpha1.BreakRequest,
-	brt *addonsv1alpha1.BreakRequestTemplate,
 ) (err error) {
 	var syncErr error
 
+	tpl := br.Status.Template
+	if tpl == nil {
+		return errors.New("template is nil")
+	}
+
 	// reset the approved items, only the true approved items should be kept, including the modification done from the operator
 	br.Status.Approved.Items = make(items.Items)
-	rendered, err := brt.RenderItemsItems(br)
+	rendered, err := br.RenderItemsItems(tpl.Items)
 	if err != nil {
 		return err
 	}

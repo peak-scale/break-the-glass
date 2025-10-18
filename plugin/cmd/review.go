@@ -66,12 +66,7 @@ var reviewCmd = &cobra.Command{
 				br.Status.Phase,
 			)
 		}
-		brt := &addonsv1alpha1.BreakRequestTemplate{}
-		if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: br.Spec.TemplateName}, brt); err != nil {
-			return err
-		}
-
-		props, err := br.GetReviewProperties(brt)
+		props, err := br.GetReviewProperties()
 		if err != nil {
 			return err
 		}
@@ -101,7 +96,7 @@ var reviewCmd = &cobra.Command{
 		} else if denyFlag {
 			action = denyValue
 		} else {
-			printAccessRequestApprovalTable(br, brt, props, !noColorFlag)
+			printAccessRequestApprovalTable(br, props, !noColorFlag)
 
 			var input string
 			for {
