@@ -30,7 +30,6 @@ import (
 const kubeBuilderType = "+kubebuilder:validation:Type="
 
 var _ = Describe("ExtendedDuration", func() {
-
 	Context("UnmarshalJSON", func() {
 		DescribeTable("should unmarshal JSON strings correctly",
 			func(input string, expectErr bool, expected ExtendedDuration) {
@@ -98,7 +97,12 @@ var _ = Describe("ExtendedDuration", func() {
 		})
 		It("should verify the schema type matches the kubebuilder comment", func() {
 			fset := token.NewFileSet()
-			file, err := parser.ParseFile(fset, "extended-duration.go", nil, parser.ParseComments)
+			file, err := parser.ParseFile(
+				fset,
+				"extended-duration_types.go",
+				nil,
+				parser.ParseComments,
+			)
 			if err != nil {
 				Expect(err).NotTo(HaveOccurred())
 			}
@@ -107,7 +111,6 @@ var _ = Describe("ExtendedDuration", func() {
 			schemaType := findKubeBuilderComment(file)
 			Expect(schemaType).To(HaveLen(1))
 			Expect(schemaType[0]).To(Equal(d.OpenAPISchemaType()[0]))
-
 		})
 	})
 

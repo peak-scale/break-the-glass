@@ -24,21 +24,25 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	bgv1 "github.com/peak-scale/break-the-glass/api/v1alpha1"
+	"github.com/peak-scale/break-the-glass/internal/items"
 	mc "github.com/peak-scale/break-the-glass/internal/mocks/client"
 	gm "go.uber.org/mock/gomock"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	rc "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const resourceName = "test-resource"
+const (
+	resourceName = "test-resource"
+	templateName = "test-template"
+)
 
 var _ = Describe("AccessRequest Controller", func() {
-
 	var (
 		ctx      context.Context
 		mockCtrl *gm.Controller
@@ -46,8 +50,9 @@ var _ = Describe("AccessRequest Controller", func() {
 		scl      *mc.MockSubResourceWriter
 		s        *runtime.Scheme
 
-		matchBr = gm.AssignableToTypeOf(&bgv1.BreakRequest{})
-		matchCm = gm.AssignableToTypeOf(&corev1.ConfigMap{})
+		matchBr  = gm.AssignableToTypeOf(&bgv1.BreakRequest{})
+		matchBrt = gm.AssignableToTypeOf(&bgv1.BreakRequestTemplate{})
+		matchUs  = gm.AssignableToTypeOf(&unstructured.Unstructured{})
 	)
 
 	BeforeEach(func() {
@@ -77,19 +82,7 @@ var _ = Describe("AccessRequest Controller", func() {
 					Namespace: "default",
 				},
 				Spec: bgv1.BreakRequestSpec{
-					Items: []runtime.RawExtension{
-						{
-							Object: &corev1.ConfigMap{
-								TypeMeta: v1.TypeMeta{
-									Kind: "ConfigMap",
-								},
-								ObjectMeta: v1.ObjectMeta{
-									Name:      "test-configmap",
-									Namespace: "default",
-								},
-							},
-						},
-					},
+					TemplateName: templateName,
 				},
 			}
 			log = ctrl.Log
@@ -103,6 +96,7 @@ var _ = Describe("AccessRequest Controller", func() {
 
 		It("should successfully reconcile the resource that is newly created", func() {
 			cl.EXPECT().Get(gm.Any(), gm.Any(), matchBr)
+			cl.EXPECT().Get(gm.Any(), gm.Any(), matchBrt)
 			scl.EXPECT().Update(gm.Any(), matchBr, gm.Any())
 
 			_, err := controllerReconciler.reconcile(ctx, log, br)
@@ -124,7 +118,7 @@ var _ = Describe("AccessRequest Controller", func() {
 						Type:               "Approved",
 					},
 				}
-				br.Status.Approved = &bgv1.BreakRequestStatusReviewProperties{
+				br.Status.Approved = &bgv1.ApprovedProperties{
 					StartTime: v1.NewTime(time.Now().Add(time.Hour)),
 				}
 
@@ -152,13 +146,22 @@ var _ = Describe("AccessRequest Controller", func() {
 					Type:               "Approved",
 				},
 			}
-			br.Status.Approved = &bgv1.BreakRequestStatusReviewProperties{
+			br.Status.Approved = &bgv1.ApprovedProperties{
 				StartTime: v1.Now(),
+			}
+			br.Status.Template = &bgv1.TemplateProperties{
+				Items: items.TemplateItems{
+					templateName: {
+						ManifestTemplate: mtConfigMapParameterized,
+						ParamSchema:      psString,
+					},
+				},
 			}
 
 			cl.EXPECT().Get(gm.Any(), gm.Any(), matchBr)
-			cl.EXPECT().Get(gm.Any(), gm.Any(), matchCm)
-			cl.EXPECT().Update(gm.Any(), matchCm, gm.Any())
+			cl.EXPECT().Get(gm.Any(), gm.Any(), matchUs)
+
+			cl.EXPECT().Update(gm.Any(), matchUs, gm.Any())
 			scl.EXPECT().Update(gm.Any(), matchBr, gm.Any())
 
 			_, err := controllerReconciler.reconcile(ctx, log, br)
@@ -170,9 +173,11 @@ var _ = Describe("AccessRequest Controller", func() {
 			Expect(br.Status.Phase).To(Equal(bgv1.RequestPhaseActive))
 
 			Expect(br.Status.Approved.Items).To(HaveLen(1))
-			cm, ok := br.Status.Approved.Items[0].Object.(*corev1.ConfigMap)
+			Expect(br.Status.Approved.Items).To(HaveKey(templateName))
+			obj := br.Status.Approved.Items[templateName].Object
+			co, ok := obj.(rc.Object)
 			Expect(ok).To(BeTrue())
-			Expect(cm.GetOwnerReferences()).To(HaveLen(1))
+			Expect(co.GetOwnerReferences()).To(HaveLen(1))
 		})
 	})
 })

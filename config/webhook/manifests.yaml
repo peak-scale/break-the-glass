@@ -1,0 +1,45 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-breakrequests
+  failurePolicy: Fail
+  name: vbr-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - addons.projectcapsule.dev
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    resources:
+    - breakrequests
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-breakrequesttemplates
+  failurePolicy: Fail
+  name: vbrt-v1alpha1.kb.io
+  rules:
+  - apiGroups:
+    - addons.projectcapsule.dev
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - breakrequesttemplates
+  sideEffects: None

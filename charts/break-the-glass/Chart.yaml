@@ -1,10 +1,10 @@
 apiVersion: v2
-name: access-requests
+name: break-the-glass
 description: Temporary Access Requests (BreakTheGlass Operator)
 type: application
 version: 0.0.0
 appVersion: "0.0.0"
-home: https://github.com/peak-scale/access-requests
+home: https://github.com/peak-scale/break-the-glass
 icon: https://avatars.githubusercontent.com/u/129185620?s=48&v=4
 keywords:
 - kubernetes
@@ -19,5 +19,5 @@ keywords:
 - permissions
 - authorization
 sources:
-  - https://github.com/peak-scale/access-requests/docs
+  - https://github.com/peak-scale/break-the-glass/docs
 

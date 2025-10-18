@@ -29,3 +29,10 @@ resources:
 - accessrule_editor_role.yaml
 - accessrule_viewer_role.yaml
 
+# For each CRD, "Admin", "Editor" and "Viewer" roles are scaffolded by
+# default, aiding admins in cluster management. Those roles are
+# not used by the break-the-glass itself. You can comment the following lines
+# if you do not want those helpers be installed with your Project.
+- breakrequesttemplate_admin_role.yaml
+- breakrequesttemplate_editor_role.yaml
+- breakrequesttemplate_viewer_role.yaml

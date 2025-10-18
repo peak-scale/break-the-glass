@@ -51,16 +51,22 @@ var reviewCmd = &cobra.Command{
 		if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name, Namespace: namespace}, br); err != nil {
 			return err
 		}
-
-		if br.Status.Phase != addonsv1alpha1.RequestPhaseRequested {
+		if br.Status.Phase == "" {
 			return fmt.Errorf(
-				"BreakRequest %s is not in Requested phase (already reviewed), current phase: %s",
+				"BreakRequest %s is not yet processed, current phase: %q",
 				name,
 				br.Status.Phase,
 			)
 		}
 
-		props, err := br.GetReviewProperties()
+		if br.Status.Phase != addonsv1alpha1.RequestPhaseRequested {
+			return fmt.Errorf(
+				"BreakRequest %s is not in Requested phase (already reviewed), current phase: %q",
+				name,
+				br.Status.Phase,
+			)
+		}
+		props, err := br.GenerateApprovedProperties()
 		if err != nil {
 			return err
 		}

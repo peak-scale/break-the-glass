@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -16,18 +17,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/yaml"
 
-	"strings"
-
 	"github.com/alecthomas/chroma/v2/formatters"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 
-	addonsv1alpha1 "github.com/peak-scale/break-the-glass/api/v1alpha1"
+	"github.com/peak-scale/break-the-glass/api/v1alpha1"
 )
 
 func printAccessRequestApprovalTable(
-	br *addonsv1alpha1.BreakRequest,
-	brp *addonsv1alpha1.BreakRequestStatusReviewProperties,
+	br *v1alpha1.BreakRequest,
+	app *v1alpha1.ApprovedProperties,
 	color bool,
 ) {
 	t := table.NewWriter()
@@ -36,25 +35,31 @@ func printAccessRequestApprovalTable(
 	t.Style().Title.Align = text.AlignCenter
 
 	durStr := "Unlimited"
-	if brp.Duration.Duration != 0 {
-		durStr = brp.Duration.Duration.String()
+	if app.Duration.Duration != 0 {
+		durStr = app.Duration.Duration.String()
 	}
 
 	keepStr := "Undefined"
-	if brp.KeepFor != 0 {
-		keepStr = brp.KeepFor.String()
+	if app.KeepFor != 0 {
+		keepStr = app.KeepFor.String()
+	}
+
+	duration := br.Spec.Duration.Duration
+	if duration == 0 {
+		duration = br.Status.Template.DefaultDuration.Duration
 	}
 
 	t.AppendHeader(table.Row{"Field", "Value"})
 	t.AppendRows([]table.Row{
 		{"Name", colorizeValue(br.Name, color)},
 		{"Namespace", colorizeValue(br.Namespace, color)},
+		{"Duration", colorizeValue(duration.String(), color)},
 		{"ExtendedDuration", colorizeValue(durStr, color)},
 		{"Keep", colorizeValue(keepStr, color)},
 	})
 
 	// Example: printing .status.items nicely as YAML
-	for i, item := range brp.Items {
+	for name, item := range app.Items {
 		content := prettyRawExtension(item)
 		if color {
 			content = colorizeYAML(content)
@@ -62,7 +67,7 @@ func printAccessRequestApprovalTable(
 		t.AppendSeparator()
 		// Multi-line cells are supported; keep them as one cell.
 		t.AppendRow(table.Row{
-			fmt.Sprintf("Status Item %d", i+1),
+			fmt.Sprintf("Status Item %q", name),
 			content,
 		})
 	}
@@ -72,33 +77,16 @@ func printAccessRequestApprovalTable(
 
 // PrettyRawExtension returns human-readable YAML for a RawExtension.
 // - If Object is non-nil, it marshals that.
-// - Else if Raw contains JSON, it converts JSON -> YAML.
-// - Else it returns Raw as string (best-effort).
-func prettyRawExtension(re runtime.RawExtension) string {
-	// 1) Prefer the typed Object if available
-	if re.Object != nil {
-		j, err := json.Marshal(re.Object)
-		if err == nil {
-			if y, errY := yaml.JSONToYAML(j); errY == nil {
-				return string(y)
-			}
-			return string(j) // fallback to JSON string
+// - Else converts JSON -> YAML.
+func prettyRawExtension(re *runtime.RawExtension) string {
+	j, err := json.Marshal(re)
+	if err == nil {
+		if y, errY := yaml.JSONToYAML(j); errY == nil {
+			return string(y)
 		}
+		return string(j) // fallback to JSON string
 	}
-
-	// 2) If Raw looks like JSON, convert to YAML
-	if len(re.Raw) > 0 {
-		if json.Valid(re.Raw) {
-			if y, err := yaml.JSONToYAML(re.Raw); err == nil {
-				return string(y)
-			}
-			return string(re.Raw) // fallback to JSON string
-		}
-		// 3) Not JSON? Return as-is (may already be YAML or plain text)
-		return string(re.Raw)
-	}
-
-	return "—"
+	return "-"
 }
 
 // colorizeValue applies ANSI colors for YAML using chroma and returns a string suitable for terminal output.
@@ -133,7 +121,7 @@ func colorize(src string, it chroma.Iterator) string {
 	if style == nil {
 		style = styles.Fallback
 	}
-	// Use terminal16m for truecolor; fall back to standard terminal if not supported.
+	// Use terminal16m for truecolor; fall back to the standard terminal if not supported.
 	formatter := formatters.Get("terminal16m")
 	if formatter == nil {
 		formatter = formatters.Fallback
@@ -156,7 +144,7 @@ func newK8sClient() (*rest.Config, ctrlclient.Client, error) {
 }
 
 func runBreakRequestAction(
-	action func(br *addonsv1alpha1.BreakRequest, user *addonsv1alpha1.AccessEntity) error,
+	action func(br *v1alpha1.BreakRequest, user *v1alpha1.AccessEntity) error,
 ) error {
 	ctx := context.Background()
 	cfg, k8sClient, err := newK8sClient()
@@ -164,13 +152,8 @@ func runBreakRequestAction(
 		return err
 	}
 
-	br := &addonsv1alpha1.BreakRequest{}
-	if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name, Namespace: namespace}, br); err != nil {
-		return err
-	}
-
-	user := &addonsv1alpha1.AccessEntity{
-		Type: addonsv1alpha1.AccessEntityTypeUser,
+	user := &v1alpha1.AccessEntity{
+		Type: v1alpha1.AccessEntityTypeUser,
 		Name: cfg.Username,
 	}
 
@@ -180,7 +163,12 @@ func runBreakRequestAction(
 			return ctrlclient.IgnoreNotFound(err) == nil
 		},
 		func() error {
+			br := &v1alpha1.BreakRequest{}
 			if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name, Namespace: namespace}, br); err != nil {
+				return err
+			}
+			brt := &v1alpha1.BreakRequestTemplate{}
+			if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: br.Spec.TemplateName}, brt); err != nil {
 				return err
 			}
 

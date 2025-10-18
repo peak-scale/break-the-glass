@@ -1,0 +1,31 @@
+package items
+
+import (
+	"bytes"
+	"encoding/json"
+	"text/template"
+)
+
+func RenderTemplate(tplData []byte, params []byte) ([]byte, error) {
+	tpl, err := ValidateTemplate(tplData)
+	if err != nil {
+		return nil, err
+	}
+
+	p := make(map[string]any)
+	if len(params) > 0 {
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, err
+		}
+	}
+
+	var res bytes.Buffer
+	if err := tpl.Execute(&res, p); err != nil {
+		return nil, err
+	}
+	return res.Bytes(), nil
+}
+
+func ValidateTemplate(tpl []byte) (*template.Template, error) {
+	return template.New("item").Parse(string(tpl))
+}

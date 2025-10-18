@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/peak-scale/break-the-glass/internal/conditions"
+	"github.com/peak-scale/break-the-glass/internal/items"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,6 +43,11 @@ import (
 	"github.com/peak-scale/break-the-glass/internal/metrics"
 )
 
+const (
+	annotationKeyManagedBy   = "app.kubernetes.io/managed-by"
+	annotationValueManagedBy = "break-the-glass-controller"
+)
+
 type BreakRequestReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
@@ -57,19 +64,18 @@ func (r *BreakRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.4/pkg/reconcile
+// Reconcile the request
 func (r *BreakRequestReconciler) Reconcile(
 	ctx context.Context,
 	req ctrl.Request,
 ) (ctrl.Result, error) {
 	log := r.Log.WithValues("Request.Name", req.Name).WithValues("Request.Namespace", req.Namespace)
 
-	instance := &addonsv1alpha1.BreakRequest{}
-	if err := r.Get(ctx, req.NamespacedName, instance); err != nil {
+	br := &addonsv1alpha1.BreakRequest{}
+	if err := r.Get(ctx, req.NamespacedName, br); err != nil {
 		if apierrors.IsNotFound(err) {
 
-			r.Metrics.DeleteRequestMetrics(instance)
+			r.Metrics.DeleteRequestMetrics(br)
 			log.V(5).
 				Info("Request object not found, could have been deleted after reconcile request")
 
@@ -82,14 +88,10 @@ func (r *BreakRequestReconciler) Reconcile(
 	}
 
 	defer func() {
-		r.Metrics.DeleteRequestMetrics(instance)
+		r.Metrics.DeleteRequestMetrics(br)
 	}()
 
-	return r.reconcile(
-		ctx,
-		log,
-		instance,
-	)
+	return r.reconcile(ctx, log, br)
 }
 
 // For more details, check Reconcile and its Result here:
@@ -97,89 +99,63 @@ func (r *BreakRequestReconciler) Reconcile(
 func (r *BreakRequestReconciler) reconcile(
 	ctx context.Context,
 	log logr.Logger,
-	request *addonsv1alpha1.BreakRequest,
+	br *addonsv1alpha1.BreakRequest,
 ) (res ctrl.Result, err error) {
+	defer r.updateStatus(ctx, log, br)()
 
-	defer func() {
-		// Always Post Status
-		cerr := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-			current := &addonsv1alpha1.BreakRequest{}
-			if err := r.Get(ctx, client.ObjectKeyFromObject(request), current); err != nil {
-				if apierrors.IsNotFound(err) {
-					// if the request is deleted, we cannot find it anymore
-					return nil
-				}
-				return fmt.Errorf("failed to refetch instance before update: %w", err)
-			}
-
-			current.Status = request.Status
-
-			log.V(7).Info("updating status", "status", current.Status)
-
-			return r.Client.Status().Update(ctx, current)
-		})
-		if cerr != nil {
-			log.Error(cerr, "failed updating status")
-			if err == nil {
-				err = cerr
-			}
-		} else {
-			log.V(7).Info("successful update", "status", request.Status)
-		}
-	}()
-
-	switch request.Status.Phase {
+	switch br.Status.Phase {
 	case addonsv1alpha1.RequestPhasePending:
 		log.V(5).Info("BreakRequest is pending, waiting for TTL")
+		return ctrl.Result{}, nil
 
 	case addonsv1alpha1.RequestPhaseApproved:
 		log.V(5).Info("BreakRequest is approved, checking if duration can be started")
 
-		if request.Status.Approved.StartTime.IsZero() ||
-			time.Until(request.Status.Approved.StartTime.Time) <= 0 {
-			log.V(5).Info("BreakRequest is approved, activating request")
+		if br.Status.Approved.StartTime.IsZero() ||
+			time.Until(br.Status.Approved.StartTime.Time) <= 0 {
+			log.V(5).Info("BreakRequest is approved, activating br")
 
 			// Transition to Active Phase
-			if err := r.transitionRequestActivation(ctx, request); err != nil {
+			if err := r.transitionRequestActivation(ctx, br); err != nil {
 				return ctrl.Result{}, fmt.Errorf(
 					"failed to activate BreakRequest %s: %w",
-					request.Name,
+					br.Name,
 					err,
 				)
 			}
 
 			log.V(5).Info("BreakRequest activated successfully")
-			return ctrl.Result{}, nil
 		}
+		return ctrl.Result{}, nil
 
 	case addonsv1alpha1.RequestPhaseDenied:
-		if err := r.addFinalizer(ctx, log, request); err != nil {
+		if err := r.addFinalizer(ctx, log, br); err != nil {
 			return ctrl.Result{}, err
 		}
 
 		log.V(5).Info("BreakRequest is denied, handling denied state")
 
-		// r.Recorder.Event(request, corev1.EventTypeWarning, "Denied", fmt.Sprintf("Request denied by %s %s", entity.Type, entity.Name))
+		// r.Recorder.Event(br, corev1.EventTypeWarning, "Denied", fmt.Sprintf("Request denied by %s %s", entity.Type, entity.Name))
+		return ctrl.Result{}, nil
 
 	case addonsv1alpha1.RequestPhaseActive:
-		if err := r.addFinalizer(ctx, log, request); err != nil {
+		if err := r.addFinalizer(ctx, log, br); err != nil {
 			return ctrl.Result{}, err
 		}
 
-		r.Recorder.Event(request, corev1.EventTypeNormal, "Activated", "Request Activated")
-
-		if request.Status.Active != nil {
-			if !request.Status.Active.ActiveUntil.IsZero() {
+		if br.Status.Active != nil {
+			if !br.Status.Active.ActiveUntil.IsZero() {
 				ts := metav1.Now()
-				if ts.After(request.Status.Active.ActiveUntil.Time) {
-					r.Recorder.Event(request, corev1.EventTypeNormal, "Expired", "Request Expired")
-					return ctrl.Result{}, request.ExpireRequest(nil)
+				if ts.After(br.Status.Active.ActiveUntil.Time) {
+					r.Recorder.Event(br, corev1.EventTypeNormal, "Expired", "Request Expired")
+					return ctrl.Result{}, br.ExpireRequest(nil)
 				}
 
+				r.Recorder.Event(br, corev1.EventTypeNormal, "Activated", "Request Activated")
 				log.V(5).Info("Requeueing when expiration is due")
 
 				return ctrl.Result{
-					RequeueAfter: request.Status.Active.ActiveUntil.Sub(ts.Time),
+					RequeueAfter: br.Status.Active.ActiveUntil.Sub(ts.Time),
 				}, nil
 			}
 		}
@@ -188,82 +164,144 @@ func (r *BreakRequestReconciler) reconcile(
 
 	// When the BreakRequest has expired
 	case addonsv1alpha1.RequestPhaseExpired:
-		if request.Status.KeepUntil.Time.IsZero() ||
-			time.Until(request.Status.KeepUntil.Time) <= 0 {
-			log.V(5).Info("AccessRequest is expired, deleting request")
-			return ctrl.Result{}, r.Delete(ctx, request)
+		if br.Status.KeepUntil.Time.IsZero() ||
+			time.Until(br.Status.KeepUntil.Time) <= 0 {
+			log.V(5).Info("AccessRequest is expired, deleting br")
+			return ctrl.Result{}, r.Delete(ctx, br)
 		}
 
 		log.V(5).Info(
 			"AccessRequest is expired, Holding expired state until keep date (%s) is reached",
-			request.Status.KeepUntil.Time,
+			br.Status.KeepUntil.Time,
 		)
 
-		if err := r.deleteItems(ctx, request); err != nil {
+		if err := r.deleteItems(ctx, br); err != nil {
 			return ctrl.Result{}, err
 		}
 
-		return ctrl.Result{RequeueAfter: time.Until(request.Status.KeepUntil.Time)}, nil
+		return ctrl.Result{RequeueAfter: time.Until(br.Status.KeepUntil.Time)}, nil
 
 	// The case when the AccessRequest is newly created
-	default:
+	case "":
+		brt := &addonsv1alpha1.BreakRequestTemplate{}
+		if err := r.Get(ctx, client.ObjectKey{Name: br.Spec.TemplateName}, brt); err != nil {
+			return ctrl.Result{}, fmt.Errorf(
+				"failed to get BreakRequest Template %s: %w",
+				br.Spec.TemplateName,
+				err,
+			)
+		}
+		// initialize br with all requirements from brt
+		br.InitializeFromTemplate(brt)
+
+		if ok, err := conditions.IsApproved(brt, br); ok {
+			props, err := br.GenerateApprovedProperties()
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			err = br.ApproveRequest(&addonsv1alpha1.AccessEntity{
+				Type: addonsv1alpha1.AccessEntityTypeSystem,
+			}, props, "Auto Approved")
+			return ctrl.Result{}, err
+		} else if err != nil {
+			return ctrl.Result{}, fmt.Errorf(
+				"auto apprival could not be evaluated for BreakRequest %s: %w",
+				br.Name,
+				err,
+			)
+		}
 		log.V(5).Info("AccessRequest is newly created, moving to pending phase")
 
-		if err := request.SetRequested(); err != nil {
+		if err := br.SetRequested(); err != nil {
 			return ctrl.Result{}, err
 		}
 
-		r.Recorder.Event(
-			request,
-			corev1.EventTypeNormal,
-			string(request.Status.Phase),
-			"Pending Review",
-		)
-	}
+		r.Recorder.Event(br, corev1.EventTypeNormal, string(br.Status.Phase), "Pending Review")
+		return ctrl.Result{}, nil
 
-	return ctrl.Result{}, nil
+	case addonsv1alpha1.RequestPhaseRequested:
+		return ctrl.Result{}, nil
+	default:
+		log.WithValues("phase", br.Status.Phase).Info("Unhandled phase")
+		return ctrl.Result{}, nil
+	}
+}
+
+func (r *BreakRequestReconciler) updateStatus(
+	ctx context.Context,
+	log logr.Logger,
+	br *addonsv1alpha1.BreakRequest,
+) func() {
+	return func() {
+		err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			current := &addonsv1alpha1.BreakRequest{}
+			if err := r.Get(ctx, client.ObjectKeyFromObject(br), current); err != nil {
+				return fmt.Errorf("failed to refetch instance before update: %w", err)
+			}
+
+			current.Status = br.Status
+
+			log.V(7).Info("updating status", "status", current.Status)
+
+			if err := r.Client.Status().Update(ctx, current); err != nil {
+				return fmt.Errorf("failed to update instance before update: %w", err)
+			}
+			return nil
+		})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// if the br is deleted, we cannot find it anymore
+				return
+			}
+
+			log.Error(err, "failed updating status")
+		} else {
+			log.V(7).Info("successful update", "status", br.Status)
+		}
+	}
 }
 
 // We are adding a finalizer to the BreakRequest to ensure it's not deleted before the request is processed (KeepFor period).
 func (r *BreakRequestReconciler) addFinalizer(
 	ctx context.Context,
 	log logr.Logger,
-	request *addonsv1alpha1.BreakRequest,
+	br *addonsv1alpha1.BreakRequest,
 ) error {
-	if request.Status.KeepUntil.Time.IsZero() || time.Until(request.Status.KeepUntil.Time) <= 0 {
+	if br.Status.KeepUntil.Time.IsZero() || time.Until(br.Status.KeepUntil.Time) <= 0 {
 		return nil
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, request, func() error {
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, br, func() error {
 		finalizerName := meta.ControllerFinalizer
-		if controllerutil.ContainsFinalizer(request, finalizerName) {
-			log.V(5).Info("Finalizer already exists", "name", request.Name)
+		if controllerutil.ContainsFinalizer(br, finalizerName) {
+			log.V(5).Info("Finalizer already exists", "name", br.Name)
 			return nil
 		}
 
-		log.V(5).Info("Adding finalizer to BreakRequest", "name", request.Name)
-		controllerutil.AddFinalizer(request, finalizerName)
+		log.V(5).Info("Adding finalizer to BreakRequest", "name", br.Name)
+		controllerutil.AddFinalizer(br, finalizerName)
 
 		return nil
 	}); err != nil {
-		return fmt.Errorf("failed to add finalizer to BreakRequest %s: %w", request.Name, err)
+		return fmt.Errorf("failed to add finalizer to BreakRequest %s: %w", br.Name, err)
 	}
 
-	return r.Get(ctx, client.ObjectKeyFromObject(request), request)
+	return r.Get(ctx, client.ObjectKeyFromObject(br), br)
 }
 
 // When a request is approved, it can be activated immediately or after a certain duration.
 func (r *BreakRequestReconciler) transitionRequestActivation(
 	ctx context.Context,
-	request *addonsv1alpha1.BreakRequest,
+	br *addonsv1alpha1.BreakRequest,
 ) error {
-	if err := request.ActiveRequest(nil); err != nil {
+	if err := br.ActiveRequest(nil); err != nil {
 		return err
 	}
 
 	// Reflect Binding
-	if err := r.reconcileItems(ctx, request); err != nil {
-		return fmt.Errorf("failed to create AccessRequest items %s: %w", request.Name, err)
+	if err := r.reconcileItems(ctx, br); err != nil {
+		return fmt.Errorf("failed to create AccessRequest items %s: %w", br.Name, err)
 	}
 
 	return nil
@@ -272,66 +310,48 @@ func (r *BreakRequestReconciler) transitionRequestActivation(
 // Creates the necessary items resources for the AccessRequest
 func (r *BreakRequestReconciler) reconcileItems(
 	ctx context.Context,
-	request *addonsv1alpha1.BreakRequest,
+	br *addonsv1alpha1.BreakRequest,
 ) (err error) {
-
 	var syncErr error
 
-	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())
+	tpl := br.Status.Template
+	if tpl == nil {
+		return errors.New("template is nil")
+	}
 
 	// reset the approved items, only the true approved items should be kept, including the modification done from the operator
-	request.Status.Approved.Items = nil
+	br.Status.Approved.Items = make(items.Items)
+	rendered, err := br.RenderItemsItems(tpl.Items)
+	if err != nil {
+		return err
+	}
 
-	for _, item := range request.Spec.Items {
-
-		var obj client.Object
-
-		// Safely get a client.Object from item.Object, or fall back to decoding Raw
-		if item.Object != nil {
-			var ok bool
-			obj, ok = item.Object.(client.Object)
-			if !ok {
-				syncErr = errors.Join(
-					syncErr,
-					fmt.Errorf(
-						"item %q is not a client.Object",
-						item.Object.GetObjectKind().GroupVersionKind().String(),
-					),
-				)
-				continue
-			}
-		} else {
-			obj = &unstructured.Unstructured{}
-
-			if _, _, decodeErr := codecFactory.UniversalDeserializer().Decode(item.Raw, nil, obj); decodeErr != nil {
-				syncErr = errors.Join(syncErr, decodeErr)
-
-				continue
-			}
+	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())
+	for name, raw := range rendered {
+		obj := &unstructured.Unstructured{}
+		if _, _, decodeErr := codecFactory.UniversalDeserializer().Decode(raw.Raw, nil, obj); decodeErr != nil {
+			syncErr = errors.Join(syncErr, decodeErr)
+			continue
 		}
+		obj.SetNamespace(br.Namespace)
 
-		obj.SetNamespace(request.Namespace)
-		if orerr := controllerutil.SetOwnerReference(request, obj, r.Scheme); orerr != nil {
+		if orerr := controllerutil.SetOwnerReference(br, obj, r.Scheme); orerr != nil {
 			syncErr = errors.Join(syncErr, orerr)
 
 			continue
 		}
 
 		// append the item to the approved items (use deep copy to avoid using the cluster object)
-		request.Status.Approved.Items = append(
-			request.Status.Approved.Items,
-			runtime.RawExtension{Object: obj.DeepCopyObject()},
-		)
+		br.Status.Approved.Items[name] = &runtime.RawExtension{Object: obj.DeepCopy()}
 
 		// Apply the object to the cluster
 		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, obj, func() error {
-
 			labels := obj.GetLabels()
 			if labels == nil {
 				labels = map[string]string{}
 			}
 
-			labels["app.kubernetes.io/managed-by"] = "access-request-controller"
+			labels[annotationKeyManagedBy] = annotationValueManagedBy
 			obj.SetLabels(labels)
 
 			return nil
@@ -347,23 +367,18 @@ func (r *BreakRequestReconciler) reconcileItems(
 // deletes items of the AccessRequest
 func (r *BreakRequestReconciler) deleteItems(
 	ctx context.Context,
-	request *addonsv1alpha1.BreakRequest,
+	br *addonsv1alpha1.BreakRequest,
 ) (err error) {
-
 	var syncErr error
 
-	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())
-
-	for _, item := range request.Status.Approved.Items {
-		obj := unstructured.Unstructured{}
-
-		if _, _, decodeErr := codecFactory.UniversalDeserializer().Decode(item.Raw, nil, &obj); decodeErr != nil {
-			syncErr = errors.Join(syncErr, decodeErr)
-
+	for _, item := range br.Status.Approved.Items {
+		obj, err := object(item)
+		if err != nil {
+			syncErr = errors.Join(syncErr, err)
 			continue
 		}
 
-		if derr := r.Delete(ctx, &obj); derr != nil {
+		if derr := r.Delete(ctx, obj); derr != nil {
 			if !apierrors.IsNotFound(derr) {
 				syncErr = errors.Join(syncErr, derr)
 				continue
@@ -372,4 +387,18 @@ func (r *BreakRequestReconciler) deleteItems(
 	}
 
 	return syncErr
+}
+
+func object(re *runtime.RawExtension) (client.Object, error) {
+	if re.Object == nil {
+		return nil, errors.New("object is nil")
+	}
+	if co, ok := re.Object.(client.Object); ok {
+		return co, nil
+	}
+	us, err := runtime.DefaultUnstructuredConverter.ToUnstructured(re.Object)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: us}, nil
 }

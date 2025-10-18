@@ -21,9 +21,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
+	"github.com/peak-scale/break-the-glass/internal/items"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -31,42 +30,55 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	addonsv1alpha1 "github.com/peak-scale/break-the-glass/api/v1alpha1"
+	"github.com/peak-scale/break-the-glass/api/v1alpha1"
 )
 
 var _ = Describe("BreakRequest Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
+		const templateName = "test-template"
 
 		ctx := context.Background()
 
-		typeNamespacedName := types.NamespacedName{
+		nnBr := types.NamespacedName{
 			Name:      resourceName,
 			Namespace: "default",
 		}
-		BreakRequest := &addonsv1alpha1.BreakRequest{}
-		var (
-			controllerReconciler *BreakRequestReconciler
-		)
+		nnBrt := types.NamespacedName{
+			Name: templateName,
+		}
+		br := &v1alpha1.BreakRequest{}
+		brt := &v1alpha1.BreakRequestTemplate{}
+		var controllerReconciler *BreakRequestReconciler
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind BreakRequest")
-			err := k8sClient.Get(ctx, typeNamespacedName, BreakRequest)
+			err := k8sClient.Get(ctx, nnBrt, brt)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &addonsv1alpha1.BreakRequest{
+				resource := &v1alpha1.BreakRequestTemplate{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: templateName,
+					},
+					Spec: v1alpha1.BreakRequestTemplateSpec{
+						Items: items.TemplateItems{
+							templateName: {
+								ManifestTemplate: mtConfigMapParameterized,
+								ParamSchema:      psString,
+							},
+						},
+					},
+				}
+				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+			}
+			err = k8sClient.Get(ctx, nnBr, br)
+			if err != nil && errors.IsNotFound(err) {
+				resource := &v1alpha1.BreakRequest{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					Spec: addonsv1alpha1.BreakRequestSpec{
-						Items: []runtime.RawExtension{
-							{Object: &v1.ConfigMap{
-								ObjectMeta: metav1.ObjectMeta{
-									Name:      "test-configmap",
-									Namespace: "default",
-								},
-							}},
-						},
+					Spec: v1alpha1.BreakRequestSpec{
+						TemplateName: templateName,
 					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
@@ -81,8 +93,8 @@ var _ = Describe("BreakRequest Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &addonsv1alpha1.BreakRequest{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			resource := &v1alpha1.BreakRequest{}
+			err := k8sClient.Get(ctx, nnBr, resource)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Cleanup the specific resource instance BreakRequest")
@@ -92,11 +104,11 @@ var _ = Describe("BreakRequest Controller", func() {
 			By("Reconciling the created resource")
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
+				NamespacedName: nnBr,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			resource := &addonsv1alpha1.BreakRequest{}
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			resource := &v1alpha1.BreakRequest{}
+			err = k8sClient.Get(ctx, nnBr, resource)
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})

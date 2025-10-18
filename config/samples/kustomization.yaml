@@ -2,4 +2,5 @@
 resources:
 - addons_v1alpha1_accessrule.yaml
 - addons_v1alpha1_accessrequest.yaml
+- addons_v1alpha1_breakrequesttemplate.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

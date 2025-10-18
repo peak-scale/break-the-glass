@@ -26,6 +26,10 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	addonsv1alpha1 "github.com/peak-scale/break-the-glass/api/v1alpha1"
+	"github.com/peak-scale/break-the-glass/internal/controller"
+	"github.com/peak-scale/break-the-glass/internal/metrics"
+	webhookv1alpha1 "github.com/peak-scale/break-the-glass/internal/webhook/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -36,12 +40,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-
-	addonsv1alpha1 "github.com/peak-scale/break-the-glass/api/v1alpha1"
-	"github.com/peak-scale/break-the-glass/internal/controller"
-	"github.com/peak-scale/break-the-glass/internal/metrics"
-	"github.com/peak-scale/break-the-glass/internal/webhooks"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -267,26 +265,34 @@ func main() {
 		os.Exit(1)
 	}
 
-	if hooks {
-		setupLog.Info("registering webhooks")
-		mgr.GetWebhookServer().Register("/requests/mutate", &admission.Webhook{
-			Handler: &webhooks.AccessRequestMutatingWebhook{
-				Decoder: admission.NewDecoder(mgr.GetScheme()),
-				Client:  mgr.GetClient(),
-				Log:     ctrl.Log.WithName("Webhooks").WithName("BreakRequests"),
-			},
-		})
-	}
-
 	if err = (&controller.BreakRequestReconciler{
 		Client:   mgr.GetClient(),
 		Log:      ctrl.Log.WithName("Controllers").WithName("BreakRequests"),
 		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("access-request-ctrl"),
+		Recorder: mgr.GetEventRecorderFor("break-the-glass-ctrl"),
 		Metrics:  *metrics.MustMakeBreakRequestsRecorder(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "BreakRequests")
 		os.Exit(1)
+	}
+	if err := (&controller.BreakRequestTemplateReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("Controllers").WithName("BreakRequestTemplates"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "BreakRequestTemplates")
+		os.Exit(1)
+	}
+	// nolint:goconst
+	if hooks {
+		if err := webhookv1alpha1.SetupBreakRequestTemplateWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "BreakRequestTemplate")
+			os.Exit(1)
+		}
+		if err := webhookv1alpha1.SetupBreakRequestWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "BreakRequest")
+			os.Exit(1)
+		}
 	}
 	// +kubebuilder:scaffold:builder
 

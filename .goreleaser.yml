@@ -35,9 +35,9 @@ release:
     - `ghcr.io/peak-scale/{{ .ProjectName }}:latest`
 
     **Helm Chart**
-    View this release on [Artifact Hub](https://artifacthub.io/packages/helm/access-requests/access-requests)
+    View this release on [Artifact Hub](https://artifacthub.io/packages/helm/break-the-glass/break-the-glass)
 
-    [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/access-requests)](https://artifacthub.io/packages/search?repo=access-requests)
+    [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/break-the-glass)](https://artifacthub.io/packages/search?repo=break-the-glass)
 
     > [!IMPORTANT]
     > Supported Kubernetes versions
