@@ -48,7 +48,11 @@ var reviewCmd = &cobra.Command{
 		}
 
 		br := &addonsv1alpha1.BreakRequest{}
-		if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name, Namespace: namespace}, br); err != nil {
+		if err := k8sClient.Get(
+			ctx,
+			ctrlclient.ObjectKey{Name: name, Namespace: namespace},
+			br,
+		); err != nil {
 			return err
 		}
 		if br.Status.Phase == "" {
@@ -127,7 +131,11 @@ var reviewCmd = &cobra.Command{
 				return ctrlclient.IgnoreNotFound(err) == nil
 			},
 			func() error {
-				if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name, Namespace: namespace}, br); err != nil {
+				if err := k8sClient.Get(
+					ctx,
+					ctrlclient.ObjectKey{Name: name, Namespace: namespace},
+					br,
+				); err != nil {
 					return err
 				}
 				switch action {

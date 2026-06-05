@@ -164,11 +164,19 @@ func runBreakRequestAction(
 		},
 		func() error {
 			br := &v1alpha1.BreakRequest{}
-			if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: name, Namespace: namespace}, br); err != nil {
+			if err := k8sClient.Get(
+				ctx,
+				ctrlclient.ObjectKey{Name: name, Namespace: namespace},
+				br,
+			); err != nil {
 				return err
 			}
 			brt := &v1alpha1.BreakRequestTemplate{}
-			if err := k8sClient.Get(ctx, ctrlclient.ObjectKey{Name: br.Spec.TemplateName}, brt); err != nil {
+			if err := k8sClient.Get(
+				ctx,
+				ctrlclient.ObjectKey{Name: br.Spec.TemplateName},
+				brt,
+			); err != nil {
 				return err
 			}
 

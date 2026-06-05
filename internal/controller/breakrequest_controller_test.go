@@ -33,6 +33,8 @@ import (
 	"github.com/peak-scale/break-the-glass/api/v1alpha1"
 )
 
+const namespace = "default"
+
 var _ = Describe("BreakRequest Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
@@ -42,7 +44,7 @@ var _ = Describe("BreakRequest Controller", func() {
 
 		nnBr := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default",
+			Namespace: namespace,
 		}
 		nnBrt := types.NamespacedName{
 			Name: templateName,
@@ -75,7 +77,7 @@ var _ = Describe("BreakRequest Controller", func() {
 				resource := &v1alpha1.BreakRequest{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
-						Namespace: "default",
+						Namespace: namespace,
 					},
 					Spec: v1alpha1.BreakRequestSpec{
 						TemplateName: templateName,

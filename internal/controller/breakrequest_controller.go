@@ -329,7 +329,8 @@ func (r *BreakRequestReconciler) reconcileItems(
 	codecFactory := serializer.NewCodecFactory(r.Client.Scheme())
 	for name, raw := range rendered {
 		obj := &unstructured.Unstructured{}
-		if _, _, decodeErr := codecFactory.UniversalDeserializer().Decode(raw.Raw, nil, obj); decodeErr != nil {
+		if _, _, decodeErr := codecFactory.UniversalDeserializer().
+			Decode(raw.Raw, nil, obj); decodeErr != nil {
 			syncErr = errors.Join(syncErr, decodeErr)
 			continue
 		}

@@ -41,7 +41,7 @@ var _ = Describe("BreakRequestTemplate Controller", func() {
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: namespace, // TODO(user):Modify as needed
 		}
 		breakrequesttemplate := &addonsv1alpha1.BreakRequestTemplate{}
 
@@ -52,7 +52,7 @@ var _ = Describe("BreakRequestTemplate Controller", func() {
 				resource := &addonsv1alpha1.BreakRequestTemplate{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
-						Namespace: "default",
+						Namespace: namespace,
 					},
 					Spec: addonsv1alpha1.BreakRequestTemplateSpec{
 						Items: items.TemplateItems{
@@ -60,7 +60,7 @@ var _ = Describe("BreakRequestTemplate Controller", func() {
 								ManifestTemplate: runtime.RawExtension{Object: &v1.ConfigMap{
 									ObjectMeta: metav1.ObjectMeta{
 										Name:      "test-configmap",
-										Namespace: "default",
+										Namespace: namespace,
 									},
 								}},
 							},

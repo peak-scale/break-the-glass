@@ -26,7 +26,7 @@ func IsApproved(brt *v1alpha1.BreakRequestTemplate, br *v1alpha1.BreakRequest) (
 		return false, err
 	}
 
-	result, _, err := prg.Eval(map[string]interface{}{
+	result, _, err := prg.Eval(map[string]any{
 		"request": obj,
 	})
 

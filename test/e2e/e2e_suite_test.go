@@ -78,7 +78,10 @@ var _ = BeforeSuite(func() {
 			_, _ = fmt.Fprintf(GinkgoWriter, "Installing CertManager...\n")
 			Expect(utils.InstallCertManager()).To(Succeed(), "Failed to install CertManager")
 		} else {
-			_, _ = fmt.Fprintf(GinkgoWriter, "WARNING: CertManager is already installed. Skipping installation...\n")
+			_, _ = fmt.Fprintf(
+				GinkgoWriter,
+				"WARNING: CertManager is already installed. Skipping installation...\n",
+			)
 		}
 	}
 })
